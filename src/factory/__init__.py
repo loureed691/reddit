@@ -180,7 +180,7 @@ class RedditVideoFactory:
         comment_pngs: List[str] = []
         for i, c in enumerate(selected_comments):
             img = render_comment_card(c.author, c.body, c.score)
-            p = f"{png_dir}/comment_{i}.png"
+            p = os.path.join(png_dir, f"comment_{i}.png")
             img.save(p, optimize=keep_temp)
             comment_pngs.append(p)
 

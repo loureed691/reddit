@@ -34,6 +34,7 @@
     "time_filter": "day",
     "min_score": 1000,
     "min_comments": 50,
-    "produced_videos_db": "produced_videos.json"
+    "produced_videos_db": "produced_videos.json",
+    "request_timeout": 30
   }
 }

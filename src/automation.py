@@ -8,6 +8,8 @@ This module provides functionality to:
 from __future__ import annotations
 import json
 import os
+import shutil
+import tempfile
 from typing import List, Optional, Set
 from dataclasses import dataclass
 
@@ -48,7 +50,6 @@ class ProducedVideosTracker:
     def _save(self) -> None:
         """Save the set of produced video IDs to disk atomically."""
         try:
-            import tempfile
             # Write to a temporary file first
             dir_path = os.path.dirname(self.db_path)
             if dir_path:
@@ -59,7 +60,6 @@ class ProducedVideosTracker:
                 tmp_path = tmp.name
             
             # Atomically move the temp file to the target location
-            import shutil
             shutil.move(tmp_path, self.db_path)
         except Exception as e:
             console.print(f"[yellow]Warning: Could not save produced videos database: {e}[/yellow]")
