@@ -92,13 +92,14 @@ class RedditVideoFactory:
         console.print("[bold]Rendering cards…[/bold]")
         title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
         title_png = f"{png_dir}/title.png"
-        title_img.save(title_png, optimize=True)
+        # Only optimize PNGs if keeping temp files, otherwise it's wasted time
+        title_img.save(title_png, optimize=keep_temp)
 
         comment_pngs: List[str] = []
         for i, c in enumerate(thread.comments):
             img = render_comment_card(c.author, c.body, c.score)
             p = f"{png_dir}/comment_{i}.png"
-            img.save(p, optimize=True)
+            img.save(p, optimize=keep_temp)
             comment_pngs.append(p)
 
         # 2) TTS

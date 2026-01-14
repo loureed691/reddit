@@ -45,7 +45,7 @@ class ProgressFfmpeg(threading.Thread):
                     self.cb(p)
                 except Exception:
                     pass
-            time.sleep(0.3)  # Poll every 300ms instead of 500ms for better responsiveness
+            time.sleep(0.5)  # Poll every 500ms to balance responsiveness and CPU usage
 
     def _read_seconds(self) -> Optional[float]:
         try:
@@ -185,6 +185,7 @@ def render_video(
                     pix_fmt="yuv420p",
                     movflags="+faststart",
                     threads=min(multiprocessing.cpu_count(), 8),  # Limit to 8 cores to avoid system unresponsiveness
+                    shortest=None,
                     t=total_len,
                 )
                 .overwrite_output()

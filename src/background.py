@@ -28,13 +28,16 @@ def generate_noise_image(path: str, size: Tuple[int,int]) -> None:
     """Generate a noise image with procedural color variation.
     
     Optimized to use numpy for faster pixel manipulation instead of
-    nested loops with Image.load().
+    nested loops with Image.load(). Uses numpy's random generator
+    for non-deterministic backgrounds (intentionally varied each time).
     """
     W, H = size
     if HAS_NUMPY:
         # Generate noise using numpy for 100x+ speedup
+        # Using default_rng() for better random number generation
+        rng = np.random.default_rng()
         r0, g0, b0 = random.randint(10,30), random.randint(10,30), random.randint(10,40)
-        noise = np.random.randint(0, 91, (H, W), dtype=np.uint8)
+        noise = rng.integers(0, 91, size=(H, W), dtype=np.uint8)
         
         # Create RGB array
         arr = np.zeros((H, W, 3), dtype=np.uint8)

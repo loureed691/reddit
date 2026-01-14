@@ -12,7 +12,16 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
-from functools import lru_cache
+
+# Module-level session for connection pooling across multiple calls
+_session: Optional[requests.Session] = None
+
+def _get_session() -> requests.Session:
+    """Get or create a persistent session for connection pooling."""
+    global _session
+    if _session is None:
+        _session = requests.Session()
+    return _session
 
 @dataclass
 class RedditComment:
@@ -48,13 +57,12 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
     url = f"https://www.reddit.com/comments/{thread_id}.json"
     headers = {"User-Agent": user_agent}
     
-    # Use session for connection pooling and better performance
-    session = requests.Session()
+    # Use persistent session for connection pooling and better performance
+    session = _get_session()
     session.headers.update(headers)
     
     # Retry logic for transient failures
     max_retries = 3
-    r = None
     for attempt in range(max_retries):
         try:
             r = session.get(url, timeout=30)
@@ -63,9 +71,6 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
             if attempt == max_retries - 1:
                 raise RuntimeError(f"Failed to fetch Reddit thread after {max_retries} attempts: {e}")
             time.sleep(1 * (attempt + 1))  # exponential backoff
-    
-    if r is None:
-        raise RuntimeError("Failed to fetch Reddit thread: no response received")
         
     if r.status_code != 200:
         raise RuntimeError(f"Reddit returned {r.status_code}: {r.text[:200]}")
