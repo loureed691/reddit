@@ -45,3 +45,4 @@ results/
 *.wav
 *.png
 !assets/fonts/*.ttf
+produced_videos.json

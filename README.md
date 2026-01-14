@@ -4,6 +4,13 @@ This is the **whole factory**: fetch a Reddit thread, pick comments, generate ti
 
 No magic, no hidden utils folder. Just files.
 
+## Features
+
+- **Fully Automated Mode**: Automatically search for suitable Reddit posts and produce videos
+- **Duplicate Prevention**: Tracks produced videos to avoid creating duplicates
+- **Configurable Video Lengths**: Create short (1-2 minutes) or long (60 minutes) videos
+- **Manual or Auto Mode**: Run with specific URLs or let it find posts automatically
+
 ## What you need installed
 
 - **Python 3.10+** (3.11/3.12 also fine)
@@ -21,9 +28,29 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## Quick start (one command)
+## Quick start
 
-### Render a video from a Reddit URL
+### Automated Mode (Recommended)
+
+Let the tool automatically find and produce videos from suitable Reddit posts:
+
+```bash
+# Run with default settings (short 1-2 minute videos)
+python run.py --auto
+
+# Run with long 60-minute videos
+python run.py --auto --duration-mode long
+```
+
+The automation will:
+1. Search configured subreddits for posts meeting criteria (score, comments)
+2. Skip posts that have already been produced
+3. Create a video from the first suitable post found
+4. Track the video to prevent duplicates
+
+### Manual Mode
+
+Render a video from a specific Reddit URL:
 
 ```bash
 python run.py --url "https://www.reddit.com/r/AskReddit/comments/THREAD_ID/some_title/" --comments 12
@@ -35,34 +62,71 @@ Output:
 Temp files (for debugging):
 - `assets/temp/<thread_id>/...`
 
+## Configuration
+
+Edit `config.json` to customize:
+
+### Video Duration Settings
+
+```json
+"video_duration": {
+  "mode": "short",                    // "short" or "long"
+  "target_duration_seconds": 90,      // Target for short mode (1-2 min)
+  "long_duration_seconds": 3600       // Target for long mode (60 min)
+}
+```
+
+### Automation Settings
+
+```json
+"automation": {
+  "enabled": true,                    // Enable auto mode by default
+  "subreddits": [                     // Subreddits to search
+    "AskReddit", 
+    "todayilearned", 
+    "explainlikeimfive"
+  ],
+  "sort_by": "hot",                   // "hot", "top", or "new"
+  "time_filter": "day",               // For "top": "hour", "day", "week", "month", "year", "all"
+  "min_score": 1000,                  // Minimum post score
+  "min_comments": 50,                 // Minimum comment count
+  "produced_videos_db": "produced_videos.json"  // Tracking database
+}
+```
+
 ## Options
 
-- Pick comment count:
-  - `--comments 8`
-- Force language for card text wrapping:
-  - `--lang en` or `--lang de`
-- Use your own background video:
-  - `--background path/to/background.mp4`
-- Disable background audio mixing:
-  - set `settings.background.enable_extra_audio` to `false` or volume to `0` in `config.json`
-- Keep temp folder:
-  - `--keep-temp`
+- **Automated mode**:
+  - `--auto`: Run in automated mode
+  - `--duration-mode short|long`: Override video duration mode
+  
+- **Manual mode**:
+  - `--url <URL>`: Specific Reddit thread URL or ID
+  - `--comments 8`: Pick comment count
+  
+- **Common options**:
+  - `--lang en` or `--lang de`: Force language for card text wrapping
+  - `--background path/to/background.mp4`: Use your own background video
+  - `--keep-temp`: Keep temp folder for debugging
+  - `--config path/to/config.json`: Use alternative config file
 
 ## How it works (pipeline)
 
-1. Fetch thread JSON: `https://www.reddit.com/comments/<id>.json`
-2. Extract title + top comments
-3. Render PNG "cards" with Pillow (`title.png` + `comment_0.png`…)
-4. Generate TTS MP3:
+1. **Search** (Auto mode): Find suitable posts from configured subreddits
+2. **Fetch**: Get thread JSON from `https://www.reddit.com/comments/<id>.json`
+3. **Duration Targeting**: Select comments to fit target duration (90s or 3600s)
+4. **Render Cards**: Create PNG images with Pillow (`title.png` + `comment_0.png`…)
+5. **Generate TTS MP3**:
    - Default: `edge-tts` (best quality, needs internet)
    - Fallback: `pyttsx3` (offline, robotic)
-5. Background:
+6. **Background**:
    - If you pass `--background`, it uses that
    - Else it generates an abstract moving noise background with ffmpeg
-6. Merge:
+7. **Merge**:
    - Concatenate audio clips
    - Overlay cards on background in sync with audio duration
    - Encode `libx264 + aac` MP4, `yuv420p`, `faststart`
+8. **Track** (Auto mode): Mark video as produced to prevent duplicates
 
 ## Troubleshooting
 

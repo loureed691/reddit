@@ -50,6 +50,44 @@ class RedditVideoFactory:
     def __init__(self, cfg: FactoryConfig):
         self.cfg = cfg
 
+    def _select_comments_for_duration(
+        self, 
+        comments: List,
+        target_duration: float,
+        tts_opts: TTSOptions,
+        mp3_dir: str
+    ) -> List:
+        """Select comments that fit within the target duration.
+        
+        Generates TTS for comments incrementally until target duration is reached.
+        Returns list of selected comments.
+        """
+        selected = []
+        cumulative_duration = 0.0
+        
+        for i, comment in enumerate(comments):
+            # Generate TTS for this comment
+            mp3_path = f"{mp3_dir}/{i}.mp3"
+            try:
+                tts_to_mp3(comment.body, mp3_path, tts_opts)
+                duration = probe_duration(mp3_path)
+                
+                # Check if adding this comment would exceed target
+                if cumulative_duration + duration > target_duration:
+                    # If this is the first comment, include it anyway
+                    if len(selected) == 0:
+                        selected.append(comment)
+                    break
+                
+                selected.append(comment)
+                cumulative_duration += duration
+                
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to generate TTS for comment {i}: {e}[/yellow]")
+                continue
+        
+        return selected
+
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
         """Generate a Reddit video from a thread URL or ID.
         
@@ -62,10 +100,22 @@ class RedditVideoFactory:
         tid = extract_thread_id(url_or_id)
         console.print(f"[bold cyan]Fetching thread: {tid}[/bold cyan]")
         
+        # Determine target duration based on video_duration config
+        duration_cfg = self.cfg.settings.video_duration
+        if duration_cfg.mode == "long":
+            target_duration = duration_cfg.long_duration_seconds
+        else:
+            target_duration = duration_cfg.target_duration_seconds
+        
+        console.print(f"[cyan]Target video duration: {target_duration}s ({duration_cfg.mode} mode)[/cyan]")
+        
+        # Fetch with potentially more comments for duration targeting
+        fetch_max_comments = max(self.cfg.settings.max_comments, 100) if duration_cfg.mode == "long" else self.cfg.settings.max_comments
+        
         thread = fetch_thread(
             thread_id=tid,
             user_agent=self.cfg.reddit.user_agent,
-            max_comments=self.cfg.settings.max_comments,
+            max_comments=fetch_max_comments,
             prefer_top=self.cfg.reddit.prefer_top_comments,
         )
         
@@ -95,14 +145,7 @@ class RedditVideoFactory:
         # Only optimize PNGs if keeping temp files, otherwise it's wasted time
         title_img.save(title_png, optimize=keep_temp)
 
-        comment_pngs: List[str] = []
-        for i, c in enumerate(thread.comments):
-            img = render_comment_card(c.author, c.body, c.score)
-            p = f"{png_dir}/comment_{i}.png"
-            img.save(p, optimize=keep_temp)
-            comment_pngs.append(p)
-
-        # 2) TTS
+        # 2) TTS for title first to estimate duration
         console.print("[bold]Generating TTS…[/bold]")
         tts_opts = TTSOptions(
             engine=self.cfg.settings.voice.engine,
@@ -113,12 +156,29 @@ class RedditVideoFactory:
 
         title_mp3 = f"{mp3_dir}/title.mp3"
         tts_to_mp3(thread.title, title_mp3, tts_opts)
+        
+        # Estimate how much time we have for comments
+        title_duration = probe_duration(title_mp3)
+        remaining_duration = max(0, target_duration - title_duration)
+        
+        # Select comments to fit target duration
+        selected_comments = self._select_comments_for_duration(
+            thread.comments, remaining_duration, tts_opts, mp3_dir
+        )
+        
+        console.print(f"[cyan]Selected {len(selected_comments)} comments for target duration[/cyan]")
 
+        comment_pngs: List[str] = []
         comment_mp3s: List[str] = []
-        for i, c in enumerate(thread.comments):
-            p = f"{mp3_dir}/{i}.mp3"
-            tts_to_mp3(c.body, p, tts_opts)
-            comment_mp3s.append(p)
+        for i, c in enumerate(selected_comments):
+            img = render_comment_card(c.author, c.body, c.score)
+            p = f"{png_dir}/comment_{i}.png"
+            img.save(p, optimize=keep_temp)
+            comment_pngs.append(p)
+            
+            # TTS was already generated during selection, just track the path
+            mp3_path = f"{mp3_dir}/{i}.mp3"
+            comment_mp3s.append(mp3_path)
 
         # 3) Background
         console.print("[bold]Preparing background…[/bold]")
