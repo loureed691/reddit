@@ -54,6 +54,7 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
     
     # Retry logic for transient failures
     max_retries = 3
+    r = None
     for attempt in range(max_retries):
         try:
             r = session.get(url, timeout=30)
@@ -62,8 +63,10 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
             if attempt == max_retries - 1:
                 raise RuntimeError(f"Failed to fetch Reddit thread after {max_retries} attempts: {e}")
             time.sleep(1 * (attempt + 1))  # exponential backoff
-    else:
-        r = session.get(url, timeout=30)
+    
+    if r is None:
+        raise RuntimeError("Failed to fetch Reddit thread: no response received")
+        
     if r.status_code != 200:
         raise RuntimeError(f"Reddit returned {r.status_code}: {r.text[:200]}")
     data = r.json()

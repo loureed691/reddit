@@ -95,7 +95,7 @@ def concat_audio(audio_paths: List[str], out_mp3: str) -> float:
     streams = [ffmpeg.input(p) for p in audio_paths]
     concat = ffmpeg.concat(*streams, a=1, v=0)
     (
-        ffmpeg.output(concat, out_mp3, acodec="libmp3lame", **{"b:a":"192k"})
+        ffmpeg.output(concat, out_mp3, **{"b:a":"192k"})
         .overwrite_output()
         .run(quiet=True, capture_stderr=True)
     )
@@ -109,7 +109,7 @@ def merge_background_audio(audio_stream, bg_mp3: str, bg_volume: float):
     if not bg_mp3 or bg_volume <= 0 or not exists(bg_mp3):
         return audio_stream
     bg = ffmpeg.input(bg_mp3).filter("volume", bg_volume)
-    return ffmpeg.filter([audio_stream, bg], "amix", inputs=2, duration="longest")
+    return ffmpeg.filter([audio_stream, bg], "amix", duration="longest")
 
 def render_video(
     background_mp4: str,
@@ -185,7 +185,6 @@ def render_video(
                     pix_fmt="yuv420p",
                     movflags="+faststart",
                     threads=multiprocessing.cpu_count(),
-                    shortest=None,
                     t=total_len,
                 )
                 .overwrite_output()
