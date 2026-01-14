@@ -144,3 +144,43 @@ Your ffmpeg is a sad minimal build. Install a real ffmpeg package.
 
 - Reddit may rate-limit you. This tool sets a user-agent and uses the public JSON endpoint.
 - Don’t upload videos you don’t have rights to. Humans and copyright lawyers exist.
+
+### "No suitable posts found"
+If running in automated mode:
+- Check your automation settings in `config.json`
+- Lower `min_score` or `min_comments` thresholds
+- Try different subreddits
+- Check if all matching posts have already been produced (check `produced_videos.json`)
+
+### Video is too short/long
+- For short videos: Adjust `target_duration_seconds` in `config.json` (default 90s = 1.5 min)
+- For long videos: Use `--duration-mode long` or set mode to "long" in config
+- The tool will select as many comments as fit within the target duration
+
+## Examples
+
+### Create short videos automatically from AskReddit
+```bash
+python run.py --auto
+```
+
+### Create a 60-minute video from trending posts
+```bash
+python run.py --auto --duration-mode long
+```
+
+### Create a specific 2-minute video
+```bash
+python run.py --url "https://www.reddit.com/r/AskReddit/comments/abc123/..." --duration-mode short
+```
+
+### Use custom configuration
+```bash
+python run.py --auto --config my_custom_config.json
+```
+
+## Additional Notes
+
+- Videos are tracked in `produced_videos.json` to prevent duplicates in automated mode.
+- Adjust duration targets in `config.json` to fine-tune video lengths.
+- The automation will skip posts that have already been produced, preventing waste.
