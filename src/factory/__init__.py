@@ -68,7 +68,7 @@ class RedditVideoFactory:
         
         for i, comment in enumerate(comments):
             # Generate TTS for this comment with sequential index
-            mp3_path = f"{mp3_dir}/{len(selected)}.mp3"
+            mp3_path = os.path.join(mp3_dir, f"{len(selected)}.mp3")
             try:
                 tts_to_mp3(comment.body, mp3_path, tts_opts)
                 duration = probe_duration(mp3_path)
@@ -81,7 +81,6 @@ class RedditVideoFactory:
                         mp3_paths.append(mp3_path)
                     else:
                         # Remove the file we just created since we won't use it
-                        import os
                         try:
                             os.remove(mp3_path)
                         except Exception:

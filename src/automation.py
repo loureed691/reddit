@@ -46,10 +46,21 @@ class ProducedVideosTracker:
             return set()
     
     def _save(self) -> None:
-        """Save the set of produced video IDs to disk."""
+        """Save the set of produced video IDs to disk atomically."""
         try:
-            with open(self.db_path, "w", encoding="utf-8") as f:
-                json.dump({"produced_ids": sorted(list(self.produced_ids))}, f, indent=2)
+            import tempfile
+            # Write to a temporary file first
+            dir_path = os.path.dirname(self.db_path)
+            if dir_path:
+                os.makedirs(dir_path, exist_ok=True)
+            
+            with tempfile.NamedTemporaryFile(mode='w', dir=dir_path or '.', delete=False, suffix='.tmp') as tmp:
+                json.dump({"produced_ids": sorted(list(self.produced_ids))}, tmp, indent=2)
+                tmp_path = tmp.name
+            
+            # Atomically move the temp file to the target location
+            import shutil
+            shutil.move(tmp_path, self.db_path)
         except Exception as e:
             console.print(f"[yellow]Warning: Could not save produced videos database: {e}[/yellow]")
     
@@ -65,8 +76,9 @@ class ProducedVideosTracker:
 class RedditSearcher:
     """Searches Reddit for suitable posts to convert to videos."""
     
-    def __init__(self, user_agent: str):
+    def __init__(self, user_agent: str, timeout: int = 30):
         self.user_agent = user_agent
+        self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": user_agent})
     
@@ -101,7 +113,7 @@ class RedditSearcher:
             url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit={limit}"
         
         try:
-            response = self.session.get(url, timeout=30)
+            response = self.session.get(url, timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
         except Exception as e:

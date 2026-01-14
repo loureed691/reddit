@@ -40,7 +40,7 @@ def main():
         
         # Initialize automation components
         tracker = ProducedVideosTracker(cfg.automation.produced_videos_db)
-        searcher = RedditSearcher(cfg.reddit.user_agent)
+        searcher = RedditSearcher(cfg.reddit.user_agent, timeout=cfg.automation.request_timeout)
         
         # Find a suitable post
         post = searcher.find_suitable_post(

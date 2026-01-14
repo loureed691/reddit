@@ -129,6 +129,7 @@ class AutomationConfig:
     min_score: int = 1000
     min_comments: int = 50
     produced_videos_db: str = "produced_videos.json"
+    request_timeout: int = 30  # Timeout for Reddit API requests in seconds
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "AutomationConfig":
@@ -140,6 +141,7 @@ class AutomationConfig:
             min_score=_to_int(d.get("min_score", 1000), 1000),
             min_comments=_to_int(d.get("min_comments", 50), 50),
             produced_videos_db=str(d.get("produced_videos_db", "produced_videos.json")),
+            request_timeout=_to_int(d.get("request_timeout", 30), 30),
         )
 
 @dataclass
