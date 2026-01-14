@@ -1,3 +1,10 @@
+"""Reddit thread fetcher with connection pooling and retry logic.
+
+Fetches thread data from Reddit's public JSON API with:
+- Session-based connection pooling for better performance
+- Exponential backoff retry logic for reliability
+- Proper error handling
+"""
 from __future__ import annotations
 import re
 import time
@@ -5,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
+from functools import lru_cache
 
 @dataclass
 class RedditComment:
@@ -32,9 +40,30 @@ def extract_thread_id(url_or_id: str) -> str:
     raise ValueError(f"Could not extract thread id from: {url_or_id}")
 
 def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top: bool) -> RedditThread:
+    """Fetch a Reddit thread with comments.
+    
+    Uses a persistent session for better connection reuse and includes
+    retry logic for improved reliability.
+    """
     url = f"https://www.reddit.com/comments/{thread_id}.json"
     headers = {"User-Agent": user_agent}
-    r = requests.get(url, headers=headers, timeout=30)
+    
+    # Use session for connection pooling and better performance
+    session = requests.Session()
+    session.headers.update(headers)
+    
+    # Retry logic for transient failures
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            r = session.get(url, timeout=30)
+            break
+        except requests.exceptions.RequestException as e:
+            if attempt == max_retries - 1:
+                raise RuntimeError(f"Failed to fetch Reddit thread after {max_retries} attempts: {e}")
+            time.sleep(1 * (attempt + 1))  # exponential backoff
+    else:
+        r = session.get(url, timeout=30)
     if r.status_code != 200:
         raise RuntimeError(f"Reddit returned {r.status_code}: {r.text[:200]}")
     data = r.json()

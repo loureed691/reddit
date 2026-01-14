@@ -1,3 +1,17 @@
+"""Reddit video factory - Main orchestration module.
+
+This module coordinates the entire pipeline:
+1. Fetch Reddit thread data
+2. Render title and comment cards as images
+3. Generate TTS audio for each text segment
+4. Create or use background video
+5. Assemble final video with ffmpeg
+
+Optimizations:
+- Caching for fonts and duration probes
+- Optimized PNG compression
+- Better error handling and validation
+"""
 from __future__ import annotations
 import json
 import os
@@ -37,13 +51,28 @@ class RedditVideoFactory:
         self.cfg = cfg
 
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
+        """Generate a Reddit video from a thread URL or ID.
+        
+        Main pipeline: fetch → render cards → TTS → background → assemble.
+        Includes proper error handling and resource cleanup.
+        """
+        if not url_or_id:
+            raise ValueError("URL or thread ID is required")
+            
         tid = extract_thread_id(url_or_id)
+        console.print(f"[bold cyan]Fetching thread: {tid}[/bold cyan]")
+        
         thread = fetch_thread(
             thread_id=tid,
             user_agent=self.cfg.reddit.user_agent,
             max_comments=self.cfg.settings.max_comments,
             prefer_top=self.cfg.reddit.prefer_top_comments,
         )
+        
+        if not thread.title:
+            raise ValueError("Thread has no title")
+        if not thread.comments:
+            console.print("[yellow]Warning: No comments found in thread[/yellow]")
 
         reddit_id = _sanitize_folder(thread.thread_id)
         temp_dir = f"assets/temp/{reddit_id}"
@@ -63,13 +92,13 @@ class RedditVideoFactory:
         console.print("[bold]Rendering cards…[/bold]")
         title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
         title_png = f"{png_dir}/title.png"
-        title_img.save(title_png)
+        title_img.save(title_png, optimize=True)
 
         comment_pngs: List[str] = []
         for i, c in enumerate(thread.comments):
             img = render_comment_card(c.author, c.body, c.score)
             p = f"{png_dir}/comment_{i}.png"
-            img.save(p)
+            img.save(p, optimize=True)
             comment_pngs.append(p)
 
         # 2) TTS

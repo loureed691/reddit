@@ -1,3 +1,10 @@
+"""Text-to-speech module with edge-tts and pyttsx3 support.
+
+Features:
+- Primary: edge-tts (high quality, requires internet)
+- Fallback: pyttsx3 (offline, robotic)
+- Improved error logging and graceful degradation
+"""
 from __future__ import annotations
 import asyncio
 import os
@@ -35,6 +42,11 @@ async def _edge_tts_async(text: str, mp3_path: str, opts: TTSOptions) -> None:
     await communicate.save(mp3_path)
 
 def tts_to_mp3(text: str, mp3_path: str, opts: TTSOptions) -> None:
+    """Convert text to MP3 audio file using configured TTS engine.
+    
+    Tries edge-tts first for quality, falls back to pyttsx3 if unavailable.
+    Includes improved error handling and logging.
+    """
     text = (text or "").strip()
     if not text:
         raise ValueError("Empty text for TTS")
@@ -46,8 +58,10 @@ def tts_to_mp3(text: str, mp3_path: str, opts: TTSOptions) -> None:
         try:
             asyncio.run(_edge_tts_async(text, mp3_path, opts))
             return
-        except Exception:
-            # fallback to pyttsx3
+        except Exception as e:
+            # Log the error and fallback to pyttsx3
+            import sys
+            print(f"Warning: edge-tts failed ({e}), falling back to pyttsx3", file=sys.stderr)
             engine = "pyttsx3"
 
     if engine == "pyttsx3":
