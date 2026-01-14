@@ -56,18 +56,19 @@ class RedditVideoFactory:
         target_duration: float,
         tts_opts: TTSOptions,
         mp3_dir: str
-    ) -> List:
+    ) -> tuple:
         """Select comments that fit within the target duration.
         
         Generates TTS for comments incrementally until target duration is reached.
-        Returns list of selected comments.
+        Returns tuple of (selected_comments, mp3_paths).
         """
         selected = []
+        mp3_paths = []
         cumulative_duration = 0.0
         
         for i, comment in enumerate(comments):
-            # Generate TTS for this comment
-            mp3_path = f"{mp3_dir}/{i}.mp3"
+            # Generate TTS for this comment with sequential index
+            mp3_path = f"{mp3_dir}/{len(selected)}.mp3"
             try:
                 tts_to_mp3(comment.body, mp3_path, tts_opts)
                 duration = probe_duration(mp3_path)
@@ -77,16 +78,25 @@ class RedditVideoFactory:
                     # If this is the first comment, include it anyway
                     if len(selected) == 0:
                         selected.append(comment)
+                        mp3_paths.append(mp3_path)
+                    else:
+                        # Remove the file we just created since we won't use it
+                        import os
+                        try:
+                            os.remove(mp3_path)
+                        except Exception:
+                            pass
                     break
                 
                 selected.append(comment)
+                mp3_paths.append(mp3_path)
                 cumulative_duration += duration
                 
             except Exception as e:
                 console.print(f"[yellow]Warning: Failed to generate TTS for comment {i}: {e}[/yellow]")
                 continue
         
-        return selected
+        return selected, mp3_paths
 
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
         """Generate a Reddit video from a thread URL or ID.
@@ -162,23 +172,18 @@ class RedditVideoFactory:
         remaining_duration = max(0, target_duration - title_duration)
         
         # Select comments to fit target duration
-        selected_comments = self._select_comments_for_duration(
+        selected_comments, comment_mp3s = self._select_comments_for_duration(
             thread.comments, remaining_duration, tts_opts, mp3_dir
         )
         
         console.print(f"[cyan]Selected {len(selected_comments)} comments for target duration[/cyan]")
 
         comment_pngs: List[str] = []
-        comment_mp3s: List[str] = []
         for i, c in enumerate(selected_comments):
             img = render_comment_card(c.author, c.body, c.score)
             p = f"{png_dir}/comment_{i}.png"
             img.save(p, optimize=keep_temp)
             comment_pngs.append(p)
-            
-            # TTS was already generated during selection, just track the path
-            mp3_path = f"{mp3_dir}/{i}.mp3"
-            comment_mp3s.append(mp3_path)
 
         # 3) Background
         console.print("[bold]Preparing background…[/bold]")
