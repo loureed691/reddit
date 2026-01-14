@@ -55,7 +55,7 @@ class ProducedVideosTracker:
             if dir_path:
                 os.makedirs(dir_path, exist_ok=True)
             
-            with tempfile.NamedTemporaryFile(mode='w', dir=dir_path or '.', delete=False, suffix='.tmp') as tmp:
+            with tempfile.NamedTemporaryFile(mode='w', dir=dir_path or '.', delete=False) as tmp:
                 json.dump({"produced_ids": sorted(list(self.produced_ids))}, tmp, indent=2)
                 tmp_path = tmp.name
             

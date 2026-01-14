@@ -67,8 +67,8 @@ class RedditVideoFactory:
         cumulative_duration = 0.0
         
         for i, comment in enumerate(comments):
-            # Generate TTS for this comment with sequential index
-            mp3_path = os.path.join(mp3_dir, f"{len(selected)}.mp3")
+            # Generate TTS for this comment with original index to avoid duplicates
+            mp3_path = os.path.join(mp3_dir, f"{i}.mp3")
             try:
                 tts_to_mp3(comment.body, mp3_path, tts_opts)
                 duration = probe_duration(mp3_path)
@@ -76,7 +76,7 @@ class RedditVideoFactory:
                 # Check if adding this comment would exceed target
                 if cumulative_duration + duration > target_duration:
                     # If this is the first comment, include it anyway
-                    if len(selected) == 0:
+                    if not selected:
                         selected.append(comment)
                         mp3_paths.append(mp3_path)
                     else:

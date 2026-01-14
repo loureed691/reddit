@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 def _get(d: Dict[str, Any], path, default=None):
     cur: Any = d
@@ -123,7 +123,7 @@ class RedditConfig:
 @dataclass
 class AutomationConfig:
     enabled: bool = False
-    subreddits: list = field(default_factory=lambda: ["AskReddit"])
+    subreddits: List[str] = field(default_factory=lambda: ["AskReddit"])
     sort_by: str = "hot"  # hot, top, new
     time_filter: str = "day"  # hour, day, week, month, year, all
     min_score: int = 1000
