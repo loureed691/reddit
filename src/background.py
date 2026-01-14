@@ -14,6 +14,14 @@ from typing import Tuple
 import ffmpeg
 from PIL import Image
 
+# Try to import numpy at module level for performance
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    np = None
+
 def _ensure_dir(path: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
@@ -24,8 +32,7 @@ def generate_noise_image(path: str, size: Tuple[int,int]) -> None:
     nested loops with Image.load().
     """
     W, H = size
-    try:
-        import numpy as np
+    if HAS_NUMPY:
         # Generate noise using numpy for 100x+ speedup
         r0, g0, b0 = random.randint(10,30), random.randint(10,30), random.randint(10,40)
         noise = np.random.randint(0, 91, (H, W), dtype=np.uint8)
@@ -37,7 +44,7 @@ def generate_noise_image(path: str, size: Tuple[int,int]) -> None:
         arr[:,:,2] = np.clip(b0 + noise, 0, 255)
         
         img = Image.fromarray(arr, mode="RGB")
-    except ImportError:
+    else:
         # Fallback to slow method if numpy not available
         img = Image.new("RGB", (W, H))
         px = img.load()

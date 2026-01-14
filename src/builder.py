@@ -179,12 +179,12 @@ def render_video(
                     f="mp4",
                     vcodec="libx264",
                     acodec="aac",
-                    preset="faster",  # Faster encoding with good quality
+                    preset="faster",  # Faster encoding with moderate quality trade-off
                     video_bitrate="8M",  # Reduced from 20M for faster encoding
                     audio_bitrate="192k",
                     pix_fmt="yuv420p",
                     movflags="+faststart",
-                    threads=multiprocessing.cpu_count(),
+                    threads=min(multiprocessing.cpu_count(), 8),  # Limit to 8 cores to avoid system unresponsiveness
                     t=total_len,
                 )
                 .overwrite_output()

@@ -34,7 +34,6 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
     
     Best effort: use bundled or system. If not found, fallback default.
     """
-    # Best effort: use bundled or system. If not found, fallback default.
     candidates = []
     if prefer:
         candidates.append(prefer)
