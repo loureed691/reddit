@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
 def _get(d: Dict[str, Any], path, default=None):
@@ -77,8 +77,8 @@ class SettingsConfig:
     opacity: float = 0.92
     max_comments: int = 12
     language: str = "en"
-    voice: VoiceConfig = VoiceConfig()
-    background: BackgroundConfig = BackgroundConfig()
+    voice: VoiceConfig = field(default_factory=VoiceConfig)
+    background: BackgroundConfig = field(default_factory=BackgroundConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "SettingsConfig":
@@ -106,8 +106,8 @@ class RedditConfig:
 
 @dataclass
 class FactoryConfig:
-    settings: SettingsConfig = SettingsConfig()
-    reddit: RedditConfig = RedditConfig()
+    settings: SettingsConfig = field(default_factory=SettingsConfig)
+    reddit: RedditConfig = field(default_factory=RedditConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "FactoryConfig":
