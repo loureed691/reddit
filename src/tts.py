@@ -15,6 +15,10 @@ from typing import Optional
 
 import ffmpeg
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 @dataclass
 class TTSOptions:
     engine: str = "edge_tts"  # edge_tts | pyttsx3
@@ -52,16 +56,18 @@ def tts_to_mp3(text: str, mp3_path: str, opts: TTSOptions) -> None:
         raise ValueError("Empty text for TTS")
 
     engine = (opts.engine or "edge_tts").strip().lower()
+    
+    logger.debug(f"Generating TTS with engine: {engine}, voice: {opts.edge_voice}")
 
     # Try edge-tts first if selected
     if engine == "edge_tts":
         try:
             asyncio.run(_edge_tts_async(text, mp3_path, opts))
+            logger.debug(f"TTS generated successfully: {mp3_path}")
             return
         except Exception as e:
             # Log the error and fallback to pyttsx3
-            import sys
-            print(f"Warning: edge-tts failed ({e}), falling back to pyttsx3", file=sys.stderr)
+            logger.warning(f"edge-tts failed ({e}), falling back to pyttsx3")
             engine = "pyttsx3"
 
     if engine == "pyttsx3":
@@ -79,8 +85,10 @@ def tts_to_mp3(text: str, mp3_path: str, opts: TTSOptions) -> None:
                 os.remove(tmp_wav)
             except Exception:
                 pass
+            logger.debug(f"TTS generated successfully with pyttsx3: {mp3_path}")
             return
         except Exception as e:
+            logger.error(f"TTS failed (pyttsx3): {e}")
             raise RuntimeError(f"TTS failed (pyttsx3): {e}")
 
     raise ValueError(f"Unknown TTS engine: {opts.engine}")

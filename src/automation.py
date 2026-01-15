@@ -14,9 +14,10 @@ from typing import List, Optional, Set
 from dataclasses import dataclass
 
 import requests
-from rich.console import Console
 
-console = Console()
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 @dataclass
 class RedditPost:
@@ -50,7 +51,7 @@ class ProducedVideosTracker:
                 data = json.load(f)
                 return set(data.get("produced_ids", []))
         except Exception as e:
-            console.print(f"[yellow]Warning: Could not load produced videos database: {e}[/yellow]")
+            logger.warning(f"Could not load produced videos database: {e}")
             return set()
     
     def _save(self) -> None:
@@ -69,7 +70,7 @@ class ProducedVideosTracker:
             # Atomically move the temp file to the target location
             shutil.move(tmp_path, self.db_path)
         except Exception as e:
-            console.print(f"[yellow]Warning: Could not save produced videos database: {e}[/yellow]")
+            logger.warning(f"Could not save produced videos database: {e}")
             # Clean up temp file if it still exists
             if tmp_path and os.path.exists(tmp_path):
                 try:
@@ -120,13 +121,13 @@ class RedditSearcher:
         # Build the URL based on sort type
         # Validate subreddit name to prevent injection
         if not subreddit or not subreddit.replace('_', '').replace('-', '').isalnum():
-            console.print(f"[red]Invalid subreddit name: {subreddit}[/red]")
+            logger.error(f"Invalid subreddit name: {subreddit}")
             return []
         
         # Validate time_filter is one of expected values
         valid_time_filters = {"hour", "day", "week", "month", "year", "all"}
         if time_filter not in valid_time_filters:
-            console.print(f"[yellow]Warning: Invalid time_filter '{time_filter}', using 'day'[/yellow]")
+            logger.warning(f"Invalid time_filter '{time_filter}', using 'day'")
             time_filter = "day"
         
         if sort_by == "top":
@@ -141,7 +142,7 @@ class RedditSearcher:
             response.raise_for_status()
             data = response.json()
         except Exception as e:
-            console.print(f"[red]Error fetching posts from r/{subreddit}: {e}[/red]")
+            logger.error(f"Error fetching posts from r/{subreddit}: {e}")
             return []
         
         posts: List[RedditPost] = []
@@ -205,7 +206,7 @@ class RedditSearcher:
             RedditPost if found, None otherwise
         """
         for subreddit in subreddits:
-            console.print(f"[cyan]Searching r/{subreddit}...[/cyan]")
+            logger.info(f"Searching r/{subreddit}...")
             posts = self.search_posts(
                 subreddit=subreddit,
                 sort_by=sort_by,
@@ -216,11 +217,11 @@ class RedditSearcher:
             
             for post in posts:
                 if not tracker.is_produced(post.thread_id):
-                    console.print(f"[green]Found suitable post: {post.title[:60]}...[/green]")
-                    console.print(f"[dim]Score: {post.score}, Comments: {post.num_comments}[/dim]")
+                    logger.info(f"Found suitable post: {post.title[:60]}...")
+                    logger.debug(f"Post details - Score: {post.score}, Comments: {post.num_comments}")
                     return post
                 else:
-                    console.print(f"[dim]Skipping already produced: {post.title[:60]}...[/dim]")
+                    logger.debug(f"Skipping already produced: {post.title[:60]}...")
         
-        console.print("[yellow]No suitable posts found that haven't been produced.[/yellow]")
+        logger.warning("No suitable posts found that haven't been produced")
         return None

@@ -167,10 +167,37 @@ class AutomationConfig:
         )
 
 @dataclass
+class LoggingConfig:
+    log_level: str = "INFO"
+    console_level: str = "INFO"
+    file_level: str = "DEBUG"
+    log_dir: str = "logs"
+    log_file: str = "reddit_factory.log"
+    max_bytes: int = 10 * 1024 * 1024  # 10MB
+    backup_count: int = 5
+    enable_file_logging: bool = True
+    enable_console_logging: bool = True
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "LoggingConfig":
+        return LoggingConfig(
+            log_level=str(d.get("log_level", "INFO")).upper(),
+            console_level=str(d.get("console_level", "INFO")).upper(),
+            file_level=str(d.get("file_level", "DEBUG")).upper(),
+            log_dir=str(d.get("log_dir", "logs")),
+            log_file=str(d.get("log_file", "reddit_factory.log")),
+            max_bytes=_to_int(d.get("max_bytes", 10 * 1024 * 1024), 10 * 1024 * 1024),
+            backup_count=_to_int(d.get("backup_count", 5), 5),
+            enable_file_logging=_to_bool(d.get("enable_file_logging", True), True),
+            enable_console_logging=_to_bool(d.get("enable_console_logging", True), True),
+        )
+
+@dataclass
 class FactoryConfig:
     settings: SettingsConfig = field(default_factory=SettingsConfig)
     reddit: RedditConfig = field(default_factory=RedditConfig)
     automation: AutomationConfig = field(default_factory=AutomationConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "FactoryConfig":
@@ -178,4 +205,5 @@ class FactoryConfig:
             settings=SettingsConfig.from_dict(d.get("settings", {}) or {}),
             reddit=RedditConfig.from_dict(d.get("reddit", {}) or {}),
             automation=AutomationConfig.from_dict(d.get("automation", {}) or {}),
+            logging=LoggingConfig.from_dict(d.get("logging", {}) or {}),
         )
