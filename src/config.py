@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 def _get(d: Dict[str, Any], path, default=None):
     cur: Any = d
@@ -71,6 +71,23 @@ class BackgroundConfig:
         )
 
 @dataclass
+class VideoDurationConfig:
+    mode: str = "short"  # "short" or "long"
+    target_duration_seconds: int = 90  # 1-2 minutes default
+    long_duration_seconds: int = 3600  # 60 minutes
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "VideoDurationConfig":
+        mode = str(d.get("mode", "short")).strip().lower()
+        if mode not in ("short", "long"):
+            raise ValueError(f"Invalid video duration mode: {mode!r}. Expected 'short' or 'long'.")
+        return VideoDurationConfig(
+            mode=mode,
+            target_duration_seconds=_to_int(d.get("target_duration_seconds", 90), 90),
+            long_duration_seconds=_to_int(d.get("long_duration_seconds", 3600), 3600),
+        )
+
+@dataclass
 class SettingsConfig:
     resolution_w: int = 1080
     resolution_h: int = 1920
@@ -79,6 +96,7 @@ class SettingsConfig:
     language: str = "en"
     voice: VoiceConfig = field(default_factory=VoiceConfig)
     background: BackgroundConfig = field(default_factory=BackgroundConfig)
+    video_duration: VideoDurationConfig = field(default_factory=VideoDurationConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "SettingsConfig":
@@ -90,6 +108,7 @@ class SettingsConfig:
             language=str(d.get("language","en")),
             voice=VoiceConfig.from_dict(d.get("voice", {}) or {}),
             background=BackgroundConfig.from_dict(d.get("background", {}) or {}),
+            video_duration=VideoDurationConfig.from_dict(d.get("video_duration", {}) or {}),
         )
 
 @dataclass
@@ -105,13 +124,58 @@ class RedditConfig:
         )
 
 @dataclass
+class AutomationConfig:
+    enabled: bool = False
+    subreddits: List[str] = field(default_factory=lambda: ["AskReddit"])
+    sort_by: str = "hot"  # hot, top, new
+    time_filter: str = "day"  # hour, day, week, month, year, all
+    min_score: int = 1000
+    min_comments: int = 50
+    produced_videos_db: str = "produced_videos.json"
+    request_timeout: int = 30  # Timeout for Reddit API requests in seconds
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "AutomationConfig":
+        # Validate subreddits field - ensure it's a list of strings
+        raw_subreddits = d.get("subreddits", ["AskReddit"])
+        default_subreddits: List[str] = ["AskReddit"]
+        
+        if isinstance(raw_subreddits, str):
+            validated_subreddits: List[str] = [raw_subreddits]
+        elif isinstance(raw_subreddits, list):
+            # Coerce each element to string, ignoring values that cannot be converted
+            validated_subreddits = []
+            for item in raw_subreddits:
+                try:
+                    validated_subreddits.append(str(item))
+                except Exception:
+                    continue
+            if not validated_subreddits:
+                validated_subreddits = default_subreddits
+        else:
+            validated_subreddits = default_subreddits
+        
+        return AutomationConfig(
+            enabled=_to_bool(d.get("enabled", False), False),
+            subreddits=validated_subreddits,
+            sort_by=str(d.get("sort_by", "hot")),
+            time_filter=str(d.get("time_filter", "day")),
+            min_score=_to_int(d.get("min_score", 1000), 1000),
+            min_comments=_to_int(d.get("min_comments", 50), 50),
+            produced_videos_db=str(d.get("produced_videos_db", "produced_videos.json")),
+            request_timeout=_to_int(d.get("request_timeout", 30), 30),
+        )
+
+@dataclass
 class FactoryConfig:
     settings: SettingsConfig = field(default_factory=SettingsConfig)
     reddit: RedditConfig = field(default_factory=RedditConfig)
+    automation: AutomationConfig = field(default_factory=AutomationConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "FactoryConfig":
         return FactoryConfig(
             settings=SettingsConfig.from_dict(d.get("settings", {}) or {}),
             reddit=RedditConfig.from_dict(d.get("reddit", {}) or {}),
+            automation=AutomationConfig.from_dict(d.get("automation", {}) or {}),
         )

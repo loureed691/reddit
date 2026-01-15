@@ -15,12 +15,12 @@ Optimizations:
 from __future__ import annotations
 import json
 import os
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 from rich.console import Console
 
 from ..config import FactoryConfig
-from ..reddit_fetcher import extract_thread_id, fetch_thread
+from ..reddit_fetcher import extract_thread_id, fetch_thread, RedditComment
 from ..render_cards import render_title_card, render_comment_card
 from ..tts import tts_to_mp3, TTSOptions
 from ..background import generate_background_mp4
@@ -50,6 +50,82 @@ class RedditVideoFactory:
     def __init__(self, cfg: FactoryConfig):
         self.cfg = cfg
 
+    def _select_comments_for_duration(
+        self, 
+        comments: List[RedditComment],
+        target_duration: float,
+        tts_opts: TTSOptions,
+        mp3_dir: str
+    ) -> Tuple[List[RedditComment], List[str]]:
+        """Select comments that fit within the target duration.
+        
+        Generates TTS for comments incrementally until the cumulative audio
+        duration would exceed ``target_duration``. Returns a tuple
+        ``(selected_comments, mp3_paths)`` where:
+        
+        - ``selected_comments`` is a list of the comment objects that were
+          successfully processed and kept.
+        - ``mp3_paths`` is a list of paths to the corresponding generated MP3
+          files, in the same order and of the same length as
+          ``selected_comments``.
+        
+        Edge cases:
+        
+        - If ``comments`` is empty, or if TTS generation fails for every
+          comment, both returned lists will be empty.
+        - If adding a comment would exceed ``target_duration``, that comment is
+          normally skipped and its MP3 file (if just generated) is removed.
+        - However, if the very first successfully generated comment would
+          exceed ``target_duration`` (including when ``target_duration`` is
+          zero or negative), that first comment is still included so that at
+          least one comment is returned when possible.
+        - When TTS generation fails for a comment, the loop continues to the
+          next comment. This creates gaps in MP3 file numbering (e.g., if
+          comment 2 fails, there's no 2.mp3 but there is 3.mp3).
+        
+        This function never raises on individual TTS failures; such failures
+        are logged as warnings and the corresponding comments are skipped.
+        """
+        # Handle edge case of non-positive target duration
+        if target_duration <= 0:
+            console.print("[yellow]Warning: target_duration is zero or negative[/yellow]")
+        
+        selected = []
+        mp3_paths = []
+        cumulative_duration = 0.0
+        
+        for i, comment in enumerate(comments):
+            # Generate TTS for this comment with original index to avoid duplicates
+            # Note: Failed TTS generations will create gaps in numbering
+            mp3_path = os.path.join(mp3_dir, f"{i}.mp3")
+            try:
+                tts_to_mp3(comment.body, mp3_path, tts_opts)
+                duration = probe_duration(mp3_path)
+                
+                # Check if adding this comment would exceed target
+                if cumulative_duration + duration > target_duration:
+                    # If this is the first comment, include it anyway
+                    if not selected:
+                        selected.append(comment)
+                        mp3_paths.append(mp3_path)
+                    else:
+                        # Remove the file we just created since we won't use it
+                        try:
+                            os.remove(mp3_path)
+                        except Exception:
+                            pass
+                    break
+                
+                selected.append(comment)
+                mp3_paths.append(mp3_path)
+                cumulative_duration += duration
+                
+            except Exception as e:
+                console.print(f"[yellow]Warning: Failed to generate TTS for comment {i}: {e}[/yellow]")
+                continue
+        
+        return selected, mp3_paths
+
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
         """Generate a Reddit video from a thread URL or ID.
         
@@ -62,10 +138,29 @@ class RedditVideoFactory:
         tid = extract_thread_id(url_or_id)
         console.print(f"[bold cyan]Fetching thread: {tid}[/bold cyan]")
         
+        # Determine target duration based on video_duration config
+        duration_cfg = self.cfg.settings.video_duration
+        if duration_cfg.mode == "long":
+            target_duration = duration_cfg.long_duration_seconds
+        else:
+            target_duration = duration_cfg.target_duration_seconds
+        
+        console.print(f"[cyan]Target video duration: {target_duration}s ({duration_cfg.mode} mode)[/cyan]")
+        
+        # Fetch with potentially more comments for duration targeting
+        # For long mode, estimate required comment count from target duration,
+        # assuming an average of ~10 seconds of audio per comment.
+        if duration_cfg.mode == "long":
+            estimated_seconds_per_comment = 10
+            estimated_needed_comments = max(1, int(target_duration / estimated_seconds_per_comment))
+            fetch_max_comments = max(self.cfg.settings.max_comments, estimated_needed_comments)
+        else:
+            fetch_max_comments = self.cfg.settings.max_comments
+        
         thread = fetch_thread(
             thread_id=tid,
             user_agent=self.cfg.reddit.user_agent,
-            max_comments=self.cfg.settings.max_comments,
+            max_comments=fetch_max_comments,
             prefer_top=self.cfg.reddit.prefer_top_comments,
         )
         
@@ -95,14 +190,7 @@ class RedditVideoFactory:
         # Only optimize PNGs if keeping temp files, otherwise it's wasted time
         title_img.save(title_png, optimize=keep_temp)
 
-        comment_pngs: List[str] = []
-        for i, c in enumerate(thread.comments):
-            img = render_comment_card(c.author, c.body, c.score)
-            p = f"{png_dir}/comment_{i}.png"
-            img.save(p, optimize=keep_temp)
-            comment_pngs.append(p)
-
-        # 2) TTS
+        # 2) TTS for title first to estimate duration
         console.print("[bold]Generating TTS…[/bold]")
         tts_opts = TTSOptions(
             engine=self.cfg.settings.voice.engine,
@@ -113,12 +201,33 @@ class RedditVideoFactory:
 
         title_mp3 = f"{mp3_dir}/title.mp3"
         tts_to_mp3(thread.title, title_mp3, tts_opts)
+        
+        # Estimate how much time we have for comments
+        title_duration = probe_duration(title_mp3)
+        remaining_duration = max(0, target_duration - title_duration)
+        
+        # Select comments to fit target duration, but handle case where title
+        # already consumes or exceeds the target duration
+        if remaining_duration <= 0:
+            console.print(
+                "[yellow]Warning: Title duration meets or exceeds target duration; "
+                "no comments will be added.[/yellow]"
+            )
+            selected_comments = []
+            comment_mp3s = []
+        else:
+            selected_comments, comment_mp3s = self._select_comments_for_duration(
+                thread.comments, remaining_duration, tts_opts, mp3_dir
+            )
+        
+        console.print(f"[cyan]Selected {len(selected_comments)} comments for target duration[/cyan]")
 
-        comment_mp3s: List[str] = []
-        for i, c in enumerate(thread.comments):
-            p = f"{mp3_dir}/{i}.mp3"
-            tts_to_mp3(c.body, p, tts_opts)
-            comment_mp3s.append(p)
+        comment_pngs: List[str] = []
+        for i, c in enumerate(selected_comments):
+            img = render_comment_card(c.author, c.body, c.score)
+            p = os.path.join(png_dir, f"comment_{i}.png")
+            img.save(p, optimize=keep_temp)
+            comment_pngs.append(p)
 
         # 3) Background
         console.print("[bold]Preparing background…[/bold]")

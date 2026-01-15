@@ -16,10 +16,25 @@
       "background_audio_volume": 0.12,
       "auto_generate_background": true,
       "background_seconds": 0
+    },
+    "video_duration": {
+      "mode": "short",
+      "target_duration_seconds": 90,
+      "long_duration_seconds": 3600
     }
   },
   "reddit": {
     "user_agent": "reddit-video-factory/1.0 (Jan-2026; by you)",
     "prefer_top_comments": true
+  },
+  "automation": {
+    "enabled": false,
+    "subreddits": ["AskReddit", "todayilearned", "explainlikeimfive"],
+    "sort_by": "hot",
+    "time_filter": "day",
+    "min_score": 1000,
+    "min_comments": 50,
+    "produced_videos_db": "produced_videos.json",
+    "request_timeout": 30
   }
 }
