@@ -124,11 +124,13 @@ def setup_logging(config: Optional[LogConfig] = None) -> None:
         root_logger.addHandler(console_handler)
     
     # File handler with rotation
+    log_file_path = None
     if config.enable_file_logging:
         log_dir = Path(config.log_dir)
         log_dir.mkdir(parents=True, exist_ok=True)
         
         log_path = log_dir / config.log_file
+        log_file_path = log_path
         file_handler = RotatingFileHandler(
             filename=str(log_path),
             maxBytes=config.max_bytes,
@@ -144,7 +146,10 @@ def setup_logging(config: Optional[LogConfig] = None) -> None:
     # Log that logging has been configured
     logger = logging.getLogger(__name__)
     logger.debug(f"Logging configured: console_level={config.console_level}, file_level={config.file_level}")
-    logger.debug(f"Log file: {log_dir / config.log_file if config.enable_file_logging else 'disabled'}")
+    if log_file_path:
+        logger.debug(f"Log file: {log_file_path}")
+    else:
+        logger.debug("File logging disabled")
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -165,20 +170,6 @@ def get_logger(name: str) -> logging.Logger:
         setup_logging()
     
     return logging.getLogger(name)
-
-
-def log_exception(logger: logging.Logger, msg: str, exc: Optional[Exception] = None) -> None:
-    """Helper to log exceptions with full traceback.
-    
-    Args:
-        logger: Logger instance
-        msg: Error message
-        exc: Exception instance (optional, uses sys.exc_info if None)
-    """
-    if exc:
-        logger.error(f"{msg}: {exc}", exc_info=True)
-    else:
-        logger.error(msg, exc_info=True)
 
 
 # Convenience function for backward compatibility with existing console usage
