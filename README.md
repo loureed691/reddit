@@ -118,6 +118,8 @@ Edit `config.json` to customize:
 4. **Render Cards**: Create PNG images with Pillow (`title.png` + `comment_0.png`…)
 5. **Generate TTS MP3**:
    - Default: `edge-tts` (best quality, needs internet)
+   - Voice: `en-US-AriaNeural` (optimized for viral content)
+   - Rate: `+12%` (1.12x speed for better engagement)
    - Fallback: `pyttsx3` (offline, robotic)
 6. **Background**:
    - If you pass `--background`, it uses that
@@ -184,3 +186,18 @@ python run.py --auto --config my_custom_config.json
 - Videos are tracked in `produced_videos.json` to prevent duplicates in automated mode.
 - Adjust duration targets in `config.json` to fine-tune video lengths.
 - The automation will skip posts that have already been produced, preventing waste.
+
+## TTS Viral Optimization
+
+The default TTS settings have been optimized for viral short-form content (TikTok, YouTube Shorts, Instagram Reels) based on 2026 best practices:
+
+- **Voice**: `en-US-AriaNeural` - Modern, conversational voice that resonates with younger audiences
+- **Speech Rate**: `+12%` (1.12x speed) - Slightly faster pace keeps attention and matches short-form content expectations
+- **Why these settings?**: Analysis of viral Reddit story videos shows that slightly faster, more conversational voices perform significantly better in terms of views, retention, and engagement
+
+You can customize these in `config.json` under the `voice` section. Other recommended viral voices:
+- `en-US-EmmaMultilingualNeural` - Warm, natural flow
+- `en-US-AndrewMultilingualNeural` - Mature, engaging male voice
+- `en-US-BrianMultilingualNeural` - Smooth, clear tone
+
+For maximum virality, keep the speech rate between +10% and +15% - this matches the pacing expectations of modern short-form video audiences while maintaining clarity and naturalness.

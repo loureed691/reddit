@@ -7,8 +7,8 @@
     "language": "en",
     "voice": {
       "engine": "edge_tts",
-      "edge_voice": "en-US-JennyNeural",
-      "rate": "+0%",
+      "edge_voice": "en-US-AriaNeural",
+      "rate": "+12%",
       "volume": "+0%"
     },
     "background": {
