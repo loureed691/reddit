@@ -29,7 +29,13 @@ class RedditPost:
     url: str
 
 class ProducedVideosTracker:
-    """Tracks which Reddit posts have already been converted to videos."""
+    """Tracks which Reddit posts have already been converted to videos.
+    
+    Uses a persistent JSON database to store produced video IDs.
+    Note: This implementation is NOT thread-safe. Do not run multiple instances
+    of the script simultaneously as they could have race conditions when
+    reading/writing the database file.
+    """
     
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -49,6 +55,7 @@ class ProducedVideosTracker:
     
     def _save(self) -> None:
         """Save the set of produced video IDs to disk atomically."""
+        tmp_path = None
         try:
             # Write to a temporary file first
             dir_path = os.path.dirname(self.db_path)
@@ -63,6 +70,12 @@ class ProducedVideosTracker:
             shutil.move(tmp_path, self.db_path)
         except Exception as e:
             console.print(f"[yellow]Warning: Could not save produced videos database: {e}[/yellow]")
+            # Clean up temp file if it still exists
+            if tmp_path and os.path.exists(tmp_path):
+                try:
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
     
     def is_produced(self, thread_id: str) -> bool:
         """Check if a video has already been produced for this thread."""
@@ -105,6 +118,17 @@ class RedditSearcher:
             List of RedditPost objects that meet the criteria
         """
         # Build the URL based on sort type
+        # Validate subreddit name to prevent injection
+        if not subreddit or not subreddit.replace('_', '').replace('-', '').isalnum():
+            console.print(f"[red]Invalid subreddit name: {subreddit}[/red]")
+            return []
+        
+        # Validate time_filter is one of expected values
+        valid_time_filters = {"hour", "day", "week", "month", "year", "all"}
+        if time_filter not in valid_time_filters:
+            console.print(f"[yellow]Warning: Invalid time_filter '{time_filter}', using 'day'[/yellow]")
+            time_filter = "day"
+        
         if sort_by == "top":
             url = f"https://www.reddit.com/r/{subreddit}/top.json?t={time_filter}&limit={limit}"
         elif sort_by == "new":
@@ -132,8 +156,15 @@ class RedditSearcher:
             
             thread_id = post_data.get("id", "")
             title = post_data.get("title", "").strip()
-            score = int(post_data.get("score", 0))
-            num_comments = int(post_data.get("num_comments", 0))
+            # Safe conversion for score and num_comments
+            try:
+                score = int(post_data.get("score", 0))
+            except (ValueError, TypeError):
+                score = 0
+            try:
+                num_comments = int(post_data.get("num_comments", 0))
+            except (ValueError, TypeError):
+                num_comments = 0
             subreddit_name = post_data.get("subreddit", subreddit)
             permalink = post_data.get("permalink", "")
             

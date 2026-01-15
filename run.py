@@ -61,13 +61,18 @@ def main():
         
         # Create the video
         factory = RedditVideoFactory(cfg)
-        out = factory.make_from_url(post.url, keep_temp=args.keep_temp)
-        
-        # Mark as produced
-        tracker.mark_produced(post.thread_id)
-        
-        print(f"\nDONE: {out}\n")
-        print(f"Thread {post.thread_id} marked as produced.")
+        try:
+            out = factory.make_from_url(post.url, keep_temp=args.keep_temp)
+            
+            # Mark as produced only on success
+            tracker.mark_produced(post.thread_id)
+            
+            print(f"\nDONE: {out}\n")
+            print(f"Thread {post.thread_id} marked as produced.")
+        except Exception as e:
+            print(f"\nERROR: Failed to create video: {e}")
+            print(f"Thread {post.thread_id} NOT marked as produced (will retry next run).")
+            return
         
     else:
         # Manual mode - requires URL

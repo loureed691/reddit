@@ -78,8 +78,11 @@ class VideoDurationConfig:
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "VideoDurationConfig":
+        mode = str(d.get("mode", "short")).strip().lower()
+        if mode not in ("short", "long"):
+            raise ValueError(f"Invalid video duration mode: {mode!r}. Expected 'short' or 'long'.")
         return VideoDurationConfig(
-            mode=str(d.get("mode", "short")),
+            mode=mode,
             target_duration_seconds=_to_int(d.get("target_duration_seconds", 90), 90),
             long_duration_seconds=_to_int(d.get("long_duration_seconds", 3600), 3600),
         )
@@ -133,9 +136,28 @@ class AutomationConfig:
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "AutomationConfig":
+        # Validate subreddits field - ensure it's a list of strings
+        raw_subreddits = d.get("subreddits", ["AskReddit"])
+        default_subreddits: List[str] = ["AskReddit"]
+        
+        if isinstance(raw_subreddits, str):
+            validated_subreddits: List[str] = [raw_subreddits]
+        elif isinstance(raw_subreddits, list):
+            # Coerce each element to string, ignoring values that cannot be converted
+            validated_subreddits = []
+            for item in raw_subreddits:
+                try:
+                    validated_subreddits.append(str(item))
+                except Exception:
+                    continue
+            if not validated_subreddits:
+                validated_subreddits = default_subreddits
+        else:
+            validated_subreddits = default_subreddits
+        
         return AutomationConfig(
             enabled=_to_bool(d.get("enabled", False), False),
-            subreddits=d.get("subreddits", ["AskReddit"]),
+            subreddits=validated_subreddits,
             sort_by=str(d.get("sort_by", "hot")),
             time_filter=str(d.get("time_filter", "day")),
             min_score=_to_int(d.get("min_score", 1000), 1000),
