@@ -2,7 +2,7 @@
 
 Generates procedural background videos with:
 - Numpy-accelerated gradient generation (100x+ faster than PIL nested loops)
-- Multiple visual styles (gradient, animated, particles)
+- Multiple visual styles (gradient, radial, noise)
 - Dynamic non-linear zoom/pan patterns for engagement
 - Vibrant color schemes optimized for short-form viral content
 - Fallback to PIL if numpy unavailable
@@ -157,8 +157,7 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     (
         ffmpeg
         .input(tmp_png, loop=1, framerate=fps)
-        .filter_("fps", fps=fps)
-        .output(out_mp4, vcodec="libx264", pix_fmt="yuv420p", r=fps, t=seconds, movflags="+faststart")
+        .output(out_mp4, vf=vf, vcodec="libx264", pix_fmt="yuv420p", r=fps, t=seconds, movflags="+faststart")
         .overwrite_output()
         .run(quiet=True)
     )
