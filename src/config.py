@@ -36,6 +36,20 @@ def _to_float(v, default=0.0) -> float:
     except Exception:
         return default
 
+def _validate_log_level(level: str, default: str) -> str:
+    """Validate and normalize a log level string.
+    
+    Args:
+        level: Log level string to validate
+        default: Default log level to use if invalid
+    
+    Returns:
+        Valid log level string (uppercase)
+    """
+    valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    normalized = str(level).upper()
+    return normalized if normalized in valid_levels else default
+
 @dataclass
 class VoiceConfig:
     engine: str = "edge_tts"     # edge_tts | pyttsx3
@@ -180,24 +194,11 @@ class LoggingConfig:
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "LoggingConfig":
-        # Validate log levels
-        valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-        
-        log_level = str(d.get("log_level", "INFO")).upper()
-        console_level = str(d.get("console_level", "INFO")).upper()
-        file_level = str(d.get("file_level", "DEBUG")).upper()
-        
-        if log_level not in valid_levels:
-            log_level = "INFO"
-        if console_level not in valid_levels:
-            console_level = "INFO"
-        if file_level not in valid_levels:
-            file_level = "DEBUG"
-        
+        # Validate log levels using helper function
         return LoggingConfig(
-            log_level=log_level,
-            console_level=console_level,
-            file_level=file_level,
+            log_level=_validate_log_level(d.get("log_level", "INFO"), "INFO"),
+            console_level=_validate_log_level(d.get("console_level", "INFO"), "INFO"),
+            file_level=_validate_log_level(d.get("file_level", "DEBUG"), "DEBUG"),
             log_dir=str(d.get("log_dir", "logs")),
             log_file=str(d.get("log_file", "reddit_factory.log")),
             max_bytes=_to_int(d.get("max_bytes", 10 * 1024 * 1024), 10 * 1024 * 1024),

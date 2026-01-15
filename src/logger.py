@@ -57,8 +57,9 @@ def setup_logging(config: Optional[LoggingConfig] = None) -> None:
         config = LoggingConfig()
     
     # Get root logger and set base level
+    # LoggingConfig already validates log levels, so we can use them directly
     root_logger = logging.getLogger()
-    root_logger.setLevel(getattr(logging, config.log_level, logging.DEBUG))
+    root_logger.setLevel(getattr(logging, config.log_level))
     
     # Clear any existing handlers to avoid duplicates
     root_logger.handlers.clear()
@@ -83,7 +84,7 @@ def setup_logging(config: Optional[LoggingConfig] = None) -> None:
             show_path=False,
             tracebacks_show_locals=False,
         )
-        console_handler.setLevel(getattr(logging, config.console_level, logging.INFO))
+        console_handler.setLevel(getattr(logging, config.console_level))
         console_handler.setFormatter(simple_formatter)
         root_logger.addHandler(console_handler)
     
@@ -101,7 +102,7 @@ def setup_logging(config: Optional[LoggingConfig] = None) -> None:
             backupCount=config.backup_count,
             encoding='utf-8',
         )
-        file_handler.setLevel(getattr(logging, config.file_level, logging.DEBUG))
+        file_handler.setLevel(getattr(logging, config.file_level))
         file_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(file_handler)
     
