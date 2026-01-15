@@ -46,3 +46,4 @@ results/
 *.png
 !assets/fonts/*.ttf
 produced_videos.json
+logs/

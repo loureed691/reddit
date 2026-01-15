@@ -20,6 +20,10 @@ from typing import Optional, List
 import ffmpeg
 from tqdm import tqdm
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 class ProgressFfmpeg(threading.Thread):
     """Background thread to track ffmpeg progress via progress file.
     
@@ -92,6 +96,8 @@ def concat_audio(audio_paths: List[str], out_mp3: str) -> float:
     if not audio_paths:
         raise ValueError("No audio paths provided for concatenation")
     
+    logger.debug(f"Concatenating {len(audio_paths)} audio files")
+    
     streams = [ffmpeg.input(p) for p in audio_paths]
     concat = ffmpeg.concat(*streams, a=1, v=0)
     (
@@ -99,7 +105,9 @@ def concat_audio(audio_paths: List[str], out_mp3: str) -> float:
         .overwrite_output()
         .run(quiet=True, capture_stderr=True)
     )
-    return sum(max(0.0, probe_duration(p)) for p in audio_paths)
+    total_duration = sum(max(0.0, probe_duration(p)) for p in audio_paths)
+    logger.debug(f"Audio concatenated: {total_duration:.2f}s total duration")
+    return total_duration
 
 def merge_background_audio(audio_stream, bg_mp3: str, bg_volume: float):
     """Merge background audio with main audio stream.
@@ -133,6 +141,9 @@ def render_video(
     
     if not image_paths:
         raise ValueError("No images provided for video rendering")
+    
+    logger.info(f"Rendering video: {len(image_paths)} images, resolution {W}x{H}")
+    logger.debug(f"Output: {out_mp4}")
 
     bg = ffmpeg.input(background_mp4)
     t = 0.0
@@ -160,6 +171,8 @@ def render_video(
     final_audio = merge_background_audio(audio, bg_audio_mp3 or "", bg_audio_volume)
 
     total_len = max(0.1, sum(max(0.0, d) for d in image_durations))
+    
+    logger.debug(f"Total video length: {total_len:.2f}s")
 
     pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
     def on_update(p: float):
@@ -192,8 +205,10 @@ def render_video(
                 .global_args("-progress", prog.progress_path, "-nostats", "-loglevel", "error")
                 .run(capture_stdout=True, capture_stderr=True)
             )
+            logger.info(f"Video rendered successfully: {out_mp4}")
         except ffmpeg.Error as e:
             err = e.stderr.decode("utf8", errors="ignore") if e.stderr else str(e)
+            logger.error(f"ffmpeg failed: {err}")
             raise RuntimeError(f"ffmpeg failed:\n{err}")
         finally:
             if pbar.n < 100:

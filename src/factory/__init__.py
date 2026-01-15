@@ -17,16 +17,15 @@ import json
 import os
 from typing import Any, List, Optional, Tuple
 
-from rich.console import Console
-
 from ..config import FactoryConfig
 from ..reddit_fetcher import extract_thread_id, fetch_thread, RedditComment
 from ..render_cards import render_title_card, render_comment_card
 from ..tts import tts_to_mp3, TTSOptions
 from ..background import generate_background_mp4
 from ..builder import concat_audio, render_video, probe_duration
+from ..logger import get_logger
 
-console = Console()
+logger = get_logger(__name__)
 
 def _ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
@@ -88,7 +87,7 @@ class RedditVideoFactory:
         """
         # Handle edge case of non-positive target duration
         if target_duration <= 0:
-            console.print("[yellow]Warning: target_duration is zero or negative[/yellow]")
+            logger.warning("target_duration is zero or negative")
         
         selected = []
         mp3_paths = []
@@ -121,7 +120,7 @@ class RedditVideoFactory:
                 cumulative_duration += duration
                 
             except Exception as e:
-                console.print(f"[yellow]Warning: Failed to generate TTS for comment {i}: {e}[/yellow]")
+                logger.warning(f"Failed to generate TTS for comment {i}: {e}")
                 continue
         
         return selected, mp3_paths
@@ -136,7 +135,7 @@ class RedditVideoFactory:
             raise ValueError("URL or thread ID is required")
             
         tid = extract_thread_id(url_or_id)
-        console.print(f"[bold cyan]Fetching thread: {tid}[/bold cyan]")
+        logger.info(f"Fetching thread: {tid}")
         
         # Determine target duration based on video_duration config
         duration_cfg = self.cfg.settings.video_duration
@@ -145,7 +144,7 @@ class RedditVideoFactory:
         else:
             target_duration = duration_cfg.target_duration_seconds
         
-        console.print(f"[cyan]Target video duration: {target_duration}s ({duration_cfg.mode} mode)[/cyan]")
+        logger.info(f"Target video duration: {target_duration}s ({duration_cfg.mode} mode)")
         
         # Fetch with potentially more comments for duration targeting
         # For long mode, estimate required comment count from target duration,
@@ -167,7 +166,7 @@ class RedditVideoFactory:
         if not thread.title:
             raise ValueError("Thread has no title")
         if not thread.comments:
-            console.print("[yellow]Warning: No comments found in thread[/yellow]")
+            logger.warning("No comments found in thread")
 
         reddit_id = _sanitize_folder(thread.thread_id)
         temp_dir = f"assets/temp/{reddit_id}"
@@ -184,14 +183,14 @@ class RedditVideoFactory:
         })
 
         # 1) Render cards
-        console.print("[bold]Rendering cards…[/bold]")
+        logger.info("Rendering cards...")
         title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
         title_png = f"{png_dir}/title.png"
         # Only optimize PNGs if keeping temp files, otherwise it's wasted time
         title_img.save(title_png, optimize=keep_temp)
 
         # 2) TTS for title first to estimate duration
-        console.print("[bold]Generating TTS…[/bold]")
+        logger.info("Generating TTS audio...")
         tts_opts = TTSOptions(
             engine=self.cfg.settings.voice.engine,
             edge_voice=self.cfg.settings.voice.edge_voice,
@@ -209,9 +208,8 @@ class RedditVideoFactory:
         # Select comments to fit target duration, but handle case where title
         # already consumes or exceeds the target duration
         if remaining_duration <= 0:
-            console.print(
-                "[yellow]Warning: Title duration meets or exceeds target duration; "
-                "no comments will be added.[/yellow]"
+            logger.warning(
+                "Title duration meets or exceeds target duration; no comments will be added"
             )
             selected_comments = []
             comment_mp3s = []
@@ -220,7 +218,7 @@ class RedditVideoFactory:
                 thread.comments, remaining_duration, tts_opts, mp3_dir
             )
         
-        console.print(f"[cyan]Selected {len(selected_comments)} comments for target duration[/cyan]")
+        logger.info(f"Selected {len(selected_comments)} comments for target duration")
 
         comment_pngs: List[str] = []
         for i, c in enumerate(selected_comments):
@@ -230,15 +228,17 @@ class RedditVideoFactory:
             comment_pngs.append(p)
 
         # 3) Background
-        console.print("[bold]Preparing background…[/bold]")
+        logger.info("Preparing background...")
         bg_cfg = self.cfg.settings.background
         bg_mp4 = f"{temp_dir}/background.mp4"
         if bg_cfg.background_path:
             import shutil
             shutil.copyfile(bg_cfg.background_path, bg_mp4)
+            logger.debug(f"Using background from: {bg_cfg.background_path}")
         else:
             if bg_cfg.auto_generate_background:
                 seconds = float(bg_cfg.background_seconds or 600)
+                logger.debug(f"Generating background video ({seconds}s)")
                 generate_background_mp4(
                     bg_mp4,
                     self.cfg.settings.resolution_w,
@@ -253,7 +253,7 @@ class RedditVideoFactory:
         bg_audio_path = bg_mp3 if os.path.exists(bg_mp3) else None
 
         # 4) Assemble
-        console.print("[bold]Assembling final video…[/bold]")
+        logger.info("Assembling final video...")
         audio_mp3 = f"{temp_dir}/audio.mp3"
         audio_paths = [title_mp3] + comment_mp3s
         concat_audio(audio_paths, audio_mp3)
@@ -266,6 +266,10 @@ class RedditVideoFactory:
         out_mp4 = os.path.join(out_dir, _sanitize_filename(thread.title)[:120] + ".mp4")
 
         screenshot_width = int((self.cfg.settings.resolution_w * 45) // 100)
+        
+        logger.debug(f"Output file: {out_mp4}")
+        logger.debug(f"Total audio duration: {sum(durations):.2f}s")
+        logger.debug(f"Images count: {len(images)}")
 
         render_video(
             background_mp4=bg_mp4,
@@ -284,6 +288,7 @@ class RedditVideoFactory:
         if not keep_temp:
             import shutil
             shutil.rmtree(temp_dir, ignore_errors=True)
+            logger.debug(f"Temporary files cleaned up: {temp_dir}")
 
         return out_mp4
 

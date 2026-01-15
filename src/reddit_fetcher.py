@@ -13,6 +13,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import requests
 
+from .logger import get_logger
+
+logger = get_logger(__name__)
+
 # Module-level session for connection pooling across multiple calls
 _session: Optional[requests.Session] = None
 
@@ -57,6 +61,8 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
     url = f"https://www.reddit.com/comments/{thread_id}.json"
     headers = {"User-Agent": user_agent}
     
+    logger.debug(f"Fetching thread {thread_id} with max_comments={max_comments}, prefer_top={prefer_top}")
+    
     # Use persistent session for connection pooling and better performance
     session = _get_session()
     session.headers.update(headers)
@@ -69,19 +75,25 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
             break
         except requests.exceptions.RequestException as e:
             if attempt == max_retries - 1:
+                logger.error(f"Failed to fetch Reddit thread after {max_retries} attempts: {e}")
                 raise RuntimeError(f"Failed to fetch Reddit thread after {max_retries} attempts: {e}")
+            logger.warning(f"Retry attempt {attempt + 1}/{max_retries} after error: {e}")
             time.sleep(1 * (attempt + 1))  # exponential backoff
         
     if r.status_code != 200:
+        logger.error(f"Reddit returned status {r.status_code}: {r.text[:200]}")
         raise RuntimeError(f"Reddit returned {r.status_code}: {r.text[:200]}")
     data = r.json()
     if not isinstance(data, list) or len(data) < 2:
+        logger.error("Unexpected Reddit JSON structure")
         raise RuntimeError("Unexpected Reddit JSON structure")
 
     post = data[0]["data"]["children"][0]["data"]
     subreddit = post.get("subreddit", "unknown")
     title = post.get("title", "").strip()
     tid = post.get("id", thread_id)
+    
+    logger.debug(f"Retrieved thread: r/{subreddit} - {title[:50]}...")
 
     raw_comments = data[1]["data"]["children"]
 
@@ -108,4 +120,8 @@ def fetch_thread(thread_id: str, user_agent: str, max_comments: int, prefer_top:
     comments = comments[:max_comments]
     if not title:
         title = f"Reddit Thread {thread_id}"
+    
+    logger.info(f"Fetched thread: {len(comments)} comments from r/{subreddit}")
+    logger.debug(f"Thread ID: {tid}, Title: {title[:50]}...")
+    
     return RedditThread(thread_id=tid, subreddit=subreddit, title=title, comments=comments)
