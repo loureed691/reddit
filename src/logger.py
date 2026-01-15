@@ -48,9 +48,12 @@ class LogConfig:
         enable_file_logging: bool = True,
         enable_console_logging: bool = True,
     ):
-        self.log_level = log_level.upper()
-        self.console_level = console_level.upper()
-        self.file_level = file_level.upper()
+        # Validate log levels
+        valid_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        
+        self.log_level = log_level.upper() if log_level.upper() in valid_levels else "INFO"
+        self.console_level = console_level.upper() if console_level.upper() in valid_levels else "INFO"
+        self.file_level = file_level.upper() if file_level.upper() in valid_levels else "DEBUG"
         self.log_dir = log_dir
         self.log_file = log_file
         self.max_bytes = max_bytes
