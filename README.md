@@ -123,7 +123,11 @@ Edit `config.json` to customize:
    - Fallback: `pyttsx3` (offline, robotic)
 6. **Background**:
    - If you pass `--background`, it uses that
-   - Else it generates an abstract moving noise background with ffmpeg
+   - Else it generates a viral-optimized animated background:
+     - **Vibrant gradients** (purple-pink, blue-cyan, orange-red, etc.)
+     - **Dynamic motion** with sinusoidal zoom/pan (breathing effect)
+     - **3 style options**: gradient (default), radial, or noise
+     - Optimized for TikTok, YouTube Shorts, Instagram Reels engagement
 7. **Merge**:
    - Concatenate audio clips
    - Overlay cards on background in sync with audio duration
@@ -201,3 +205,55 @@ You can customize these in `config.json` under the `voice` section. Other recomm
 - `en-US-BrianMultilingualNeural` - Smooth, clear tone
 
 For maximum virality, keep the speech rate between +10% and +15% - this matches the pacing expectations of modern short-form video audiences while maintaining clarity and naturalness.
+
+## Background Viral Optimization
+
+The background generation has been optimized for maximum engagement on short-form video platforms (TikTok, YouTube Shorts, Instagram Reels):
+
+### Visual Styles
+
+Three background styles are available, configurable in `config.json`:
+
+1. **Gradient (Default)** - Diagonal gradients with vibrant color schemes
+   - Purple-pink (trending on TikTok)
+   - Blue-cyan (clean, modern)
+   - Orange-red (high energy)
+   - Teal-green (calming but vibrant)
+   - Violet-blue (mysterious, engaging)
+
+2. **Radial** - Center-focused gradients that draw attention to the middle
+   - Creates a natural focal point for text overlays
+   - Excellent for story-telling content
+
+3. **Noise** - Enhanced version of the original noise background
+   - Brighter, more vibrant colors than before
+   - Good for less distracting backgrounds
+
+### Dynamic Motion
+
+The background features a sinusoidal zoom/pan effect that creates a subtle "breathing" motion:
+- Non-linear movement feels more organic than linear zoom
+- Oscillates smoothly between 1.0x and 1.3x zoom
+- Gentle side-to-side motion (20px radius)
+- Proven to retain attention better in viral content analysis
+
+### Configuration
+
+Edit `config.json` to customize:
+
+```json
+"background": {
+  "style": "gradient",  // "gradient", "radial", or "noise"
+  "auto_generate_background": true,
+  "background_audio_volume": 0.12
+}
+```
+
+### Why These Optimizations Work
+
+1. **Vibrant Colors**: Gradient backgrounds with bold colors perform better than dark/muted tones on mobile devices
+2. **Dynamic Motion**: Subtle animation keeps viewers engaged without distracting from content
+3. **Platform Optimization**: Designed specifically for vertical video (1080x1920) on TikTok/Shorts/Reels
+4. **Visual Hierarchy**: Backgrounds complement text overlays rather than competing with them
+
+The gradient style is recommended for most content as it provides the best balance of visual interest and engagement without overwhelming the text content.
