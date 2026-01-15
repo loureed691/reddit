@@ -5,7 +5,7 @@ from pathlib import Path
 
 from src.factory import FactoryConfig, RedditVideoFactory
 from src.automation import RedditSearcher, ProducedVideosTracker
-from src.logger import setup_logging, get_logger, LogConfig
+from src.logger import setup_logging, get_logger
 
 def main():
     ap = argparse.ArgumentParser(description="Reddit Video Factory (standalone).")
@@ -27,18 +27,11 @@ def main():
     cfg = FactoryConfig.from_dict(cfg_raw)
     
     # Setup logging early with configuration from config file
-    log_config = LogConfig(
-        log_level=args.log_level or cfg.logging.log_level,
-        console_level=cfg.logging.console_level,
-        file_level=cfg.logging.file_level,
-        log_dir=cfg.logging.log_dir,
-        log_file=cfg.logging.log_file,
-        max_bytes=cfg.logging.max_bytes,
-        backup_count=cfg.logging.backup_count,
-        enable_file_logging=cfg.logging.enable_file_logging,
-        enable_console_logging=cfg.logging.enable_console_logging,
-    )
-    setup_logging(log_config)
+    # Apply command-line log level override if provided
+    if args.log_level:
+        cfg.logging.log_level = args.log_level.upper()
+    
+    setup_logging(cfg.logging)
     
     logger = get_logger(__name__)
     logger.info("Reddit Video Factory started")
