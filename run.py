@@ -6,6 +6,7 @@ from pathlib import Path
 from src.factory import FactoryConfig, RedditVideoFactory
 from src.automation import RedditSearcher, ProducedVideosTracker
 from src.logger import setup_logging, get_logger
+from src.config import _validate_log_level
 
 def main():
     ap = argparse.ArgumentParser(description="Reddit Video Factory (standalone).")
@@ -29,7 +30,7 @@ def main():
     # Setup logging early with configuration from config file
     # Apply command-line log level override if provided
     if args.log_level:
-        cfg.logging.log_level = args.log_level.upper()
+        cfg.logging.log_level = _validate_log_level(args.log_level, "INFO")
     
     setup_logging(cfg.logging)
     
