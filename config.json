@@ -38,7 +38,7 @@
     "request_timeout": 30
   },
   "logging": {
-    "log_level": "INFO",
+    "log_level": "DEBUG",
     "console_level": "INFO",
     "file_level": "DEBUG",
     "log_dir": "logs",
