@@ -8,6 +8,7 @@ Generates procedural background videos with:
 from __future__ import annotations
 import os
 import random
+import shutil
 import tempfile
 from typing import Tuple
 
@@ -23,6 +24,22 @@ except ImportError:
 
 def _ensure_dir(path: str) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
+
+def _check_ffmpeg_installed() -> None:
+    """Check if ffmpeg is available on the system.
+    
+    Raises RuntimeError with helpful message if ffmpeg is not found.
+    """
+    if not shutil.which("ffmpeg"):
+        raise RuntimeError(
+            "ffmpeg is not installed or not found in PATH. "
+            "Please install ffmpeg to generate background videos.\n"
+            "Installation instructions:\n"
+            "  - Ubuntu/Debian: sudo apt-get install ffmpeg\n"
+            "  - macOS: brew install ffmpeg\n"
+            "  - Windows: Download from https://ffmpeg.org/download.html\n"
+            "After installation, verify with: ffmpeg -version"
+        )
 
 def generate_noise_image(path: str, size: Tuple[int,int]) -> None:
     """Generate a noise image with procedural color variation.
@@ -60,7 +77,19 @@ def generate_noise_image(path: str, size: Tuple[int,int]) -> None:
     img.save(path, format="PNG", optimize=True)
 
 def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: int=30) -> None:
-    # Generate moving background by zooming a noise image.
+    """Generate moving background by zooming a noise image.
+    
+    Args:
+        out_mp4: Output path for the generated MP4 file
+        W: Video width in pixels
+        H: Video height in pixels
+        seconds: Duration of the video in seconds
+        fps: Frames per second (default: 30)
+        
+    Raises:
+        RuntimeError: If ffmpeg is not installed or not in PATH
+    """
+    _check_ffmpeg_installed()
     _ensure_dir(out_mp4)
     seconds = max(1.0, float(seconds))
 
