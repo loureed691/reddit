@@ -63,11 +63,13 @@ Users can customize the voice in `config.json` based on their content type:
 ## Performance Impact
 
 ### Expected Improvements
-Based on viral content analysis:
-- **Viewer Retention**: 10-20% improvement in average watch time
-- **Engagement**: Higher like/share rates due to better pacing
-- **Algorithm Performance**: Better reach due to improved retention signals
-- **Perceived Quality**: More professional, modern production value
+Based on general viral content analysis and industry best practices, these changes may lead to:
+- **Viewer Retention**: Potential 10–20% improvement in average watch time
+- **Engagement**: Potentially higher like/share rates due to better pacing
+- **Algorithm Performance**: Potentially better reach due to improved retention signals
+- **Perceived Quality**: More professional, modern production value in many cases
+
+> **Note**: These are expected outcomes, not guarantees. Actual impact will vary by audience and content; you should validate effects using your own analytics and, where possible, A/B testing.
 
 ### No Negative Impact On
 - Audio quality (still high-quality edge-tts)
@@ -77,19 +79,28 @@ Based on viral content analysis:
 
 ## Testing & Validation
 
-### Code Validation
-✅ Python syntax validation passed
-✅ Dataclass structure verified
-✅ JSON configuration valid
-✅ Module imports successful
-✅ Code review: 0 issues
-✅ Security scan: 0 vulnerabilities
+### Code Validation Performed
+The following validation steps were completed during development:
+- ✅ Python syntax validation (using `python -m py_compile` on all modified modules)
+- ✅ Dataclass structure verified (tested TTSOptions instantiation)
+- ✅ JSON configuration validated (loaded and parsed successfully in Python)
+- ✅ Module imports successful (all dependencies resolved correctly)
+- ✅ Code review: 0 issues (using automated code review tools)
+- ✅ Security scan: 0 vulnerabilities (using CodeQL scanner)
 
-### Backward Compatibility
-✅ All existing functionality preserved
-✅ Configuration overrides still work
-✅ No breaking changes to API
-✅ Graceful fallback to pyttsx3 maintained
+### Backward Compatibility Verification
+Tested to ensure:
+- ✅ All existing functionality preserved (tts_to_mp3 function signature unchanged)
+- ✅ Configuration overrides still work (custom config.json values respected)
+- ✅ No breaking changes to API (all public interfaces maintained)
+- ✅ Graceful fallback to pyttsx3 maintained (tested with edge-tts unavailable)
+
+### Recommended Validation Before Production Use
+Before deploying these changes to production, consider:
+1. Test with sample Reddit content to verify audio quality meets expectations
+2. Compare output with previous voice/rate settings to confirm improvements
+3. Run A/B tests if possible to measure actual engagement impact
+4. Validate that the selected voice works well with your target audience
 
 ## Usage
 
