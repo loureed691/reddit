@@ -30,8 +30,10 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
     """Generate a visually engaging background image optimized for viral content.
     
     Supports multiple styles optimized for short-form video platforms:
-    - 'gradient': Smooth diagonal gradient with vibrant colors
+    - 'gradient': Smooth diagonal gradient with vibrant colors (default)
     - 'radial': Radial gradient from center (eye-catching)
+    - 'particles': Animated particle field effect (NEW - most engaging)
+    - 'waves': Flowing wave patterns (NEW - hypnotic)
     - 'noise': Original noise-based background (legacy)
     
     Uses numpy for 100x+ speedup over PIL nested loops.
@@ -40,58 +42,108 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
     Args:
         path: Output path for the PNG image
         size: (width, height) tuple for image dimensions
-        style: Background style - 'gradient', 'radial', or 'noise'
+        style: Background style - 'gradient', 'radial', 'particles', 'waves', or 'noise'
     """
     W, H = size
     
-    # Viral color schemes - more vibrant and engaging than dark noise
-    # These colors perform better on short-form video platforms
-    # Select color scheme outside numpy conditional for consistent behavior
+    # Enhanced viral color schemes - more vibrant, modern palettes
     color_schemes = [
-        # Purple-Pink gradient (trending on TikTok)
-        [(75, 0, 130), (255, 20, 147)],  # Deep purple to hot pink
-        # Blue-Cyan gradient (clean, modern)
-        [(0, 30, 100), (0, 180, 216)],   # Dark blue to cyan
-        # Orange-Red gradient (high energy)
-        [(255, 69, 0), (220, 20, 60)],   # Red-orange to crimson
-        # Teal-Green gradient (calming but vibrant)
-        [(0, 128, 128), (34, 139, 34)],  # Teal to forest green
-        # Violet-Blue gradient (mysterious, engaging)
-        [(138, 43, 226), (65, 105, 225)], # Blue-violet to royal blue
+        # Neon Purple-Pink gradient (viral TikTok aesthetic)
+        [(120, 40, 200), (255, 60, 180)],  # Deep purple to hot pink
+        # Electric Blue-Cyan gradient (modern, energetic)
+        [(0, 50, 150), (0, 220, 255)],   # Dark blue to bright cyan
+        # Sunset Orange-Pink gradient (warm, inviting)
+        [(255, 100, 50), (255, 50, 150)],   # Orange to pink
+        # Mint-Teal gradient (fresh, modern)
+        [(50, 200, 180), (100, 250, 220)],  # Teal to mint
+        # Royal Purple-Blue gradient (premium feel)
+        [(140, 50, 230), (80, 120, 255)], # Purple to royal blue
+        # Neon Green-Blue gradient (energetic)
+        [(0, 255, 150), (0, 180, 255)],   # Neon green to blue
     ]
     
     color1, color2 = random.choice(color_schemes)
     
     if HAS_NUMPY:
         
-        if style == "gradient":
-            # Diagonal gradient - more dynamic than vertical/horizontal
+        if style == "particles":
+            # NEW: Particle field effect - most engaging for retention
+            # Create base gradient
             y_grad = np.linspace(0, 1, H, dtype=np.float32).reshape(-1, 1)
             x_grad = np.linspace(0, 1, W, dtype=np.float32).reshape(1, -1)
-            # Diagonal blend for more interesting visual
-            blend = (y_grad * 0.6 + x_grad * 0.4)
+            blend = (y_grad * 0.5 + x_grad * 0.5)
+            
+            arr = np.zeros((H, W, 3), dtype=np.uint8)
+            for i in range(3):
+                arr[:,:,i] = (color1[i] * (1 - blend) + color2[i] * blend).astype(np.uint8)
+            
+            # Add bright particle spots
+            rng = np.random.default_rng()
+            num_particles = 200
+            for _ in range(num_particles):
+                cx = rng.integers(0, W)
+                cy = rng.integers(0, H)
+                size = rng.integers(20, 80)
+                brightness = rng.integers(120, 200)
+                
+                # Create particle glow
+                y_coords = np.arange(H, dtype=np.float32).reshape(-1, 1)
+                x_coords = np.arange(W, dtype=np.float32).reshape(1, -1)
+                dist = np.sqrt((x_coords - cx)**2 + (y_coords - cy)**2)
+                
+                # Gaussian-like falloff
+                glow = np.exp(-dist / size) * brightness
+                glow = glow.astype(np.uint8)
+                
+                # Add to all channels with slight color variation
+                arr[:,:,0] = np.clip(arr[:,:,0] + glow * 0.9, 0, 255).astype(np.uint8)
+                arr[:,:,1] = np.clip(arr[:,:,1] + glow * 1.0, 0, 255).astype(np.uint8)
+                arr[:,:,2] = np.clip(arr[:,:,2] + glow * 1.1, 0, 255).astype(np.uint8)
+        
+        elif style == "waves":
+            # NEW: Wave pattern effect - hypnotic and engaging
+            y_coords = np.linspace(0, 4 * np.pi, H, dtype=np.float32).reshape(-1, 1)
+            x_coords = np.linspace(0, 4 * np.pi, W, dtype=np.float32).reshape(1, -1)
+            
+            # Multiple wave frequencies for complexity
+            wave1 = np.sin(y_coords + x_coords * 0.5)
+            wave2 = np.sin(x_coords * 0.7 + y_coords * 0.3)
+            wave3 = np.sin(y_coords * 1.3 - x_coords * 0.4)
+            
+            # Combine waves
+            blend = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.3 + 1) / 2  # Normalize to 0-1
+            
+            arr = np.zeros((H, W, 3), dtype=np.uint8)
+            for i in range(3):
+                arr[:,:,i] = (color1[i] * (1 - blend) + color2[i] * blend).astype(np.uint8)
+        
+        elif style == "gradient":
+            # Enhanced diagonal gradient with more dynamic blend
+            y_grad = np.linspace(0, 1, H, dtype=np.float32).reshape(-1, 1)
+            x_grad = np.linspace(0, 1, W, dtype=np.float32).reshape(1, -1)
+            # More diagonal bias for dynamic feel
+            blend = (y_grad * 0.7 + x_grad * 0.3)
             
             arr = np.zeros((H, W, 3), dtype=np.uint8)
             for i in range(3):
                 arr[:,:,i] = (color1[i] * (1 - blend) + color2[i] * blend).astype(np.uint8)
         
         elif style == "radial":
-            # Radial gradient from center - draws eye to middle
+            # Enhanced radial gradient with smoother falloff
             y_coords = np.linspace(-1, 1, H, dtype=np.float32).reshape(-1, 1)
             x_coords = np.linspace(-1, 1, W, dtype=np.float32).reshape(1, -1)
             distance = np.sqrt(x_coords**2 + y_coords**2)
-            # Normalize to 0-1 range
-            distance = np.clip(distance / np.sqrt(2), 0, 1)
+            # Smoother normalization with power curve
+            distance = np.clip((distance / np.sqrt(2)) ** 0.8, 0, 1)
             
             arr = np.zeros((H, W, 3), dtype=np.uint8)
             for i in range(3):
                 arr[:,:,i] = (color1[i] * (1 - distance) + color2[i] * distance).astype(np.uint8)
         
         else:  # 'noise' or fallback
-            # Original noise implementation (now with more vibrant base colors)
+            # Original noise implementation with brighter base
             rng = np.random.default_rng()
-            # Use brighter base colors than original (10-30 -> 30-80)
-            r0, g0, b0 = random.randint(30,80), random.randint(30,80), random.randint(40,90)
+            r0, g0, b0 = random.randint(40,90), random.randint(40,90), random.randint(50,100)
             noise = rng.integers(0, 91, size=(H, W), dtype=np.uint8)
             
             arr = np.zeros((H, W, 3), dtype=np.uint8)
@@ -102,12 +154,11 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
         img = Image.fromarray(arr, mode="RGB")
     else:
         # Fallback to slow method if numpy not available
-        # Use gradient approximation with same randomly selected colors
         img = Image.new("RGB", (W, H))
         px = img.load()
         
-        if style in ["gradient", "radial"]:
-            # Use the same randomly selected color scheme for consistency
+        if style in ["gradient", "radial", "particles", "waves"]:
+            # Simple gradient fallback
             for y in range(H):
                 blend = y / H
                 r = int(color1[0] * (1-blend) + color2[0] * blend)
@@ -116,8 +167,8 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
                 for x in range(W):
                     px[x,y] = (r, g, b)
         else:
-            # Original noise fallback with brighter colors
-            r0, g0, b0 = random.randint(30,80), random.randint(30,80), random.randint(40,90)
+            # Original noise fallback
+            r0, g0, b0 = random.randint(40,90), random.randint(40,90), random.randint(50,100)
             for y in range(H):
                 for x in range(W):
                     n = random.randint(0, 90)
@@ -130,9 +181,10 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     """Generate an engaging background video optimized for viral content.
     
     Creates a dynamic background with:
-    - Vibrant gradient or radial patterns (more engaging than noise)
-    - Non-linear zoom/pan animation (sinusoidal for natural feel)
+    - Multiple visual styles: gradient, radial, particles, waves
+    - Enhanced non-linear zoom/pan animation with rotation
     - Optimized for short-form vertical video (TikTok, YouTube Shorts)
+    - Smooth, organic motion that keeps viewers engaged
     
     Args:
         out_mp4: Output path for the MP4 video
@@ -140,7 +192,7 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
         H: Height in pixels (typically 1920 for vertical)
         seconds: Duration in seconds
         fps: Frames per second (default 30)
-        style: Background style - 'gradient', 'radial', or 'noise'
+        style: Background style - 'gradient', 'radial', 'particles', 'waves', or 'noise'
     """
     _ensure_dir(out_mp4)
     seconds = max(1.0, float(seconds))
@@ -148,11 +200,24 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     tmp_png = tempfile.NamedTemporaryFile(suffix=".png", delete=False).name
     generate_viral_gradient_image(tmp_png, (W, H), style=style)
 
-    # Enhanced zoompan with sinusoidal motion for more organic feel
-    # This creates a "breathing" effect that's more engaging than linear zoom
-    # Formula: zoom oscillates smoothly between 1.0 and 1.3 over the duration
-    # The sinusoidal pattern is proven to retain attention better in viral content
-    vf = f"zoompan=z='1.15+0.15*sin(on/{fps}/2)':x='iw/2-(iw/zoom/2)+sin(on/{fps})*20':y='ih/2-(ih/zoom/2)+cos(on/{fps})*20':d=1:s={W}x{H}:fps={fps},format=yuv420p"
+    # Enhanced zoompan with multiple motion patterns for organic feel
+    # Creates a "breathing" effect with gentle rotation-like motion
+    # Formula combines:
+    # - Sinusoidal zoom oscillation (1.0 to 1.35 range for more dynamic feel)
+    # - Circular pan motion with varying speed
+    # - Subtle rotation effect via asymmetric x/y motion
+    # The motion is proven to retain attention better in viral content analysis
+    
+    # Use different motion patterns based on style for variety
+    if style == "particles":
+        # Faster, more energetic motion for particle backgrounds
+        vf = f"zoompan=z='1.2+0.2*sin(on/{fps}/1.5)':x='iw/2-(iw/zoom/2)+sin(on/{fps}*1.2)*30':y='ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*30':d=1:s={W}x{H}:fps={fps},format=yuv420p"
+    elif style == "waves":
+        # Slower, flowing motion for wave backgrounds
+        vf = f"zoompan=z='1.15+0.18*sin(on/{fps}/2.5)':x='iw/2-(iw/zoom/2)+sin(on/{fps}*0.6)*25':y='ih/2-(ih/zoom/2)+cos(on/{fps}*0.4)*25':d=1:s={W}x{H}:fps={fps},format=yuv420p"
+    else:
+        # Balanced motion for gradient/radial backgrounds
+        vf = f"zoompan=z='1.18+0.17*sin(on/{fps}/2)':x='iw/2-(iw/zoom/2)+sin(on/{fps}*0.8)*25+cos(on/{fps}*0.3)*10':y='ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*25+sin(on/{fps}*0.3)*10':d=1:s={W}x{H}:fps={fps},format=yuv420p"
     
     try:
         (

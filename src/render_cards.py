@@ -19,14 +19,24 @@ from functools import lru_cache
 
 @dataclass
 class CardTheme:
-    card_w: int = 900
-    padding: int = 48
-    radius: int = 32
-    bg: Tuple[int,int,int,int] = (18, 18, 22, 235)
-    border: Tuple[int,int,int,int] = (255, 255, 255, 24)
-    text: Tuple[int,int,int,int] = (245, 245, 245, 255)
-    muted: Tuple[int,int,int,int] = (180, 180, 190, 220)
-    accent: Tuple[int,int,int,int] = (120, 200, 255, 255)
+    card_w: int = 920
+    padding: int = 56
+    radius: int = 40
+    # Modern glassmorphism - semi-transparent dark with blur effect simulation
+    bg: Tuple[int,int,int,int] = (15, 15, 20, 245)
+    # Gradient border with higher opacity for premium look
+    border: Tuple[int,int,int,int] = (255, 255, 255, 60)
+    border_gradient_start: Tuple[int,int,int,int] = (138, 180, 248, 180)  # Soft blue
+    border_gradient_end: Tuple[int,int,int,int] = (195, 140, 255, 180)    # Soft purple
+    # Enhanced text colors for better readability
+    text: Tuple[int,int,int,int] = (255, 255, 255, 255)
+    muted: Tuple[int,int,int,int] = (200, 200, 210, 240)
+    # Multiple accent colors for variety
+    accent_blue: Tuple[int,int,int,int] = (100, 180, 255, 255)
+    accent_purple: Tuple[int,int,int,int] = (180, 100, 255, 255)
+    accent_gradient: Tuple[int,int,int,int] = (138, 180, 248, 255)
+    # Shadow color for depth
+    shadow: Tuple[int,int,int,int] = (0, 0, 0, 80)
 
 @lru_cache(maxsize=32)
 def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
@@ -56,6 +66,32 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
 def _rounded_rectangle(draw: ImageDraw.ImageDraw, xy, radius, fill, outline=None, width=1):
     # Pillow >= 9 supports rounded_rectangle
     draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
+
+def _draw_gradient_border(img: Image.Image, xy, radius: int, color1: Tuple[int,int,int,int], color2: Tuple[int,int,int,int], width: int=3):
+    """Draw a gradient border on an image for premium look."""
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    
+    # Draw multiple borders with gradient colors
+    x1, y1, x2, y2 = xy
+    steps = max(1, width)
+    
+    for i in range(steps):
+        t = i / max(1, steps - 1) if steps > 1 else 0
+        r = int(color1[0] * (1-t) + color2[0] * t)
+        g = int(color1[1] * (1-t) + color2[1] * t)
+        b = int(color1[2] * (1-t) + color2[2] * t)
+        a = int(color1[3] * (1-t) + color2[3] * t)
+        
+        offset = i
+        draw.rounded_rectangle(
+            (x1 + offset, y1 + offset, x2 - offset, y2 - offset),
+            radius=max(1, radius - offset),
+            outline=(r, g, b, a),
+            width=1
+        )
+    
+    img.paste(overlay, (0, 0), overlay)
 
 def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, max_w: int) -> List[str]:
     """Wrap text to fit within max width. Optimized version with early break."""
@@ -90,99 +126,185 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, 
     return lines
 
 def render_title_card(title: str, subtitle: str="") -> Image.Image:
-    """Render a title card with gradient accent bar.
+    """Render a modern title card with glassmorphism effect and gradient accents.
     
-    Optimized to calculate exact dimensions first to avoid recreation.
+    Enhanced design features:
+    - Glassmorphism background with gradient border
+    - Larger, more prominent text
+    - Gradient accent bar with glow effect
+    - Better spacing and visual hierarchy
     """
     theme = CardTheme()
     W = theme.card_w
-    base_h = 520
+    base_h = 540
 
     # Pre-create draw context for measurement
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    font_title = _load_font(50)
-    font_sub = _load_font(28)
+    # Use larger fonts for better readability
+    font_title = _load_font(56)
+    font_sub = _load_font(32)
 
-    max_text_w = W - 2*theme.padding
+    max_text_w = W - 2*theme.padding - 40  # Extra margin for accent bar
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # estimate height
-    line_h_title = 60
-    line_h_sub = 36
-    content_h = theme.padding + len(title_lines)*line_h_title + (24 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
+    # Estimate height with better spacing
+    line_h_title = 68
+    line_h_sub = 42
+    content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
-    # Create final image with correct size
+    # Create final image with shadow layer for depth
     img = Image.new("RGBA", (W, H), (0,0,0,0))
+    
+    # Draw subtle shadow for depth
+    shadow_img = Image.new("RGBA", (W, H), (0,0,0,0))
+    shadow_draw = ImageDraw.Draw(shadow_img)
+    shadow_offset = 6
+    _rounded_rectangle(shadow_draw, (shadow_offset, shadow_offset, W+shadow_offset, H+shadow_offset), 
+                      theme.radius, fill=theme.shadow)
+    img.paste(shadow_img, (0, 0), shadow_img)
+    
+    # Main card background
     draw = ImageDraw.Draw(img)
-    _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
+    _rounded_rectangle(draw, (0, 0, W, H), theme.radius, fill=theme.bg)
+    
+    # Add gradient border for premium look
+    _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
+                         theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # little accent bar
-    draw.rounded_rectangle((theme.padding, theme.padding, theme.padding+10, H-theme.padding), radius=6, fill=theme.accent)
+    # Enhanced gradient accent bar with glow
+    accent_x = theme.padding - 4
+    accent_w = 12
+    accent_y1 = theme.padding
+    accent_y2 = H - theme.padding
+    
+    # Draw glow behind accent bar
+    for i in range(8, 0, -1):
+        alpha = int(40 * (i / 8))
+        glow_color = (*theme.accent_blue[:3], alpha)
+        draw.rounded_rectangle(
+            (accent_x - i, accent_y1, accent_x + accent_w + i, accent_y2),
+            radius=8, fill=glow_color
+        )
+    
+    # Main accent bar with gradient effect
+    draw.rounded_rectangle((accent_x, accent_y1, accent_x + accent_w, accent_y2), 
+                          radius=8, fill=theme.accent_gradient)
 
-    x = theme.padding + 24
+    # Draw text with enhanced positioning
+    x = theme.padding + 32
     y = theme.padding
+    
     for line in title_lines[:10]:
-        draw.text((x,y), line, font=font_title, fill=theme.text)
+        draw.text((x, y), line, font=font_title, fill=theme.text)
         y += line_h_title
 
     if subtitle_lines:
-        y += 10
+        y += 16
         for line in subtitle_lines[:6]:
-            draw.text((x,y), line, font=font_sub, fill=theme.muted)
+            draw.text((x, y), line, font=font_sub, fill=theme.muted)
             y += line_h_sub
 
     return img
 
 def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
-    """Render a comment card with author, body text, and score.
+    """Render a modern comment card with enhanced visual design.
     
-    Optimized to calculate exact dimensions first to avoid recreation.
+    Enhanced design features:
+    - Glassmorphism background with gradient border
+    - Better typography and spacing
+    - Visual icons and separators
+    - Score badge with gradient background
+    - Author highlighting
     """
     theme = CardTheme()
     W = theme.card_w
-    base_h = 720
+    base_h = 740
 
     # Pre-create draw context for measurement
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    font_author = _load_font(30)
-    font_body = _load_font(32)
-    font_meta = _load_font(24)
+    font_author = _load_font(34)
+    font_body = _load_font(36)
+    font_meta = _load_font(26)
 
     max_text_w = W - 2*theme.padding
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 42
-    header_h = 110
+    line_h = 46
+    header_h = 120
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
 
-    # Create final image with correct size
+    # Create final image with shadow for depth
     img = Image.new("RGBA", (W, H), (0,0,0,0))
+    
+    # Draw subtle shadow
+    shadow_img = Image.new("RGBA", (W, H), (0,0,0,0))
+    shadow_draw = ImageDraw.Draw(shadow_img)
+    shadow_offset = 6
+    _rounded_rectangle(shadow_draw, (shadow_offset, shadow_offset, W+shadow_offset, H+shadow_offset), 
+                      theme.radius, fill=theme.shadow)
+    img.paste(shadow_img, (0, 0), shadow_img)
+    
+    # Main card background
     draw = ImageDraw.Draw(img)
-    _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
+    _rounded_rectangle(draw, (0, 0, W, H), theme.radius, fill=theme.bg)
+    
+    # Add gradient border
+    _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
+                         theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # author row
+    # Header section
     x = theme.padding
     y = theme.padding
-    draw.text((x,y), author, font=font_author, fill=theme.text)
-    meta = f"score {score}"
-    bbox = draw.textbbox((0,0), meta, font=font_meta)
-    draw.text((W-theme.padding-(bbox[2]-bbox[0]), y+6), meta, font=font_meta, fill=theme.muted)
+    
+    # Author name with highlight
+    author_text = f"u/{author}"
+    draw.text((x, y), author_text, font=font_author, fill=theme.accent_blue)
+    
+    # Score badge with gradient background
+    meta = f"↑ {score:,}"
+    bbox = draw.textbbox((0, 0), meta, font=font_meta)
+    badge_w = (bbox[2] - bbox[0]) + 24
+    badge_h = (bbox[3] - bbox[1]) + 16
+    badge_x = W - theme.padding - badge_w
+    badge_y = y - 4
+    
+    # Draw gradient badge background
+    for i in range(3):
+        alpha = int(120 - i * 20)
+        badge_color = (*theme.accent_purple[:3], alpha)
+        draw.rounded_rectangle(
+            (badge_x + i, badge_y + i, badge_x + badge_w - i, badge_y + badge_h - i),
+            radius=16,
+            fill=badge_color
+        )
+    
+    # Draw score text
+    text_x = badge_x + 12
+    text_y = badge_y + 8
+    draw.text((text_x, text_y), meta, font=font_meta, fill=theme.text)
 
-    # divider
-    y += 54
-    draw.line((theme.padding, y, W-theme.padding, y), fill=theme.border, width=2)
-    y += 24
+    # Enhanced divider with gradient
+    y += 64
+    divider_y = y
+    # Draw gradient divider
+    for i in range(W - 2 * theme.padding):
+        t = i / (W - 2 * theme.padding)
+        alpha = int(60 * (1 - abs(t - 0.5) * 2))  # Fade at edges
+        color = (*theme.border_gradient_start[:3], alpha)
+        draw.line((theme.padding + i, divider_y, theme.padding + i, divider_y + 2), fill=color, width=1)
+    
+    y += 28
 
-    # body
+    # Body text with enhanced spacing
     for line in body_lines[:40]:
-        draw.text((x,y), line, font=font_body, fill=theme.text)
+        draw.text((x, y), line, font=font_body, fill=theme.text)
         y += line_h
 
     return img
