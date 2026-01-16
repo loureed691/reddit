@@ -158,7 +158,6 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
         (
             ffmpeg
             .input(tmp_png, loop=1, framerate=fps)
-            .filter_("fps", fps=fps)
             .output(out_mp4, vf=vf, vcodec="libx264", pix_fmt="yuv420p", r=fps, t=seconds, movflags="+faststart")
             .overwrite_output()
             .run(capture_stdout=True, capture_stderr=True)
