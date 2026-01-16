@@ -41,12 +41,17 @@ def create_progressive_text(full_text: str, word_timings: List[WordTiming]) -> L
         return [(full_text, 0.0, 0.0)]
     
     progressive_frames: List[Tuple[str, float, float]] = []
-    words = split_text_into_words(full_text)
     
-    # Map timing words to actual text words (they should match closely)
+    # Build progressive text using word timings directly
+    # This ensures we match the TTS output exactly
+    accumulated_text = ""
+    
     for i, timing in enumerate(word_timings):
-        # Build progressive text up to current word
-        partial_text = " ".join(words[:i+1])
+        # Add word to accumulated text with proper spacing
+        if accumulated_text:
+            accumulated_text += " " + timing.text
+        else:
+            accumulated_text = timing.text
         
         # Calculate duration: until next word or end of audio
         if i < len(word_timings) - 1:
@@ -55,7 +60,7 @@ def create_progressive_text(full_text: str, word_timings: List[WordTiming]) -> L
             # Last word: use its duration
             duration = timing.duration
         
-        progressive_frames.append((partial_text, timing.offset, duration))
+        progressive_frames.append((accumulated_text, timing.offset, duration))
     
     return progressive_frames
 
@@ -92,7 +97,7 @@ def render_progressive_title_cards(
     
     result: List[Tuple[str, float]] = []
     
-    for i, (partial_text, start_time, duration) in enumerate(progressive_frames):
+    for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
         img = render_title_card(partial_text, subtitle)
         path = os.path.join(png_dir, f"{base_name}_{i:03d}.png")
         img.save(path, optimize=False)
@@ -136,7 +141,7 @@ def render_progressive_comment_cards(
     
     result: List[Tuple[str, float]] = []
     
-    for i, (partial_text, start_time, duration) in enumerate(progressive_frames):
+    for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
         img = render_comment_card(author, partial_text, score)
         path = os.path.join(png_dir, f"{base_name}_{i:03d}.png")
         img.save(path, optimize=False)

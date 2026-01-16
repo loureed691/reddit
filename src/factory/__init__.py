@@ -225,11 +225,16 @@ class RedditVideoFactory:
             title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
             title_png = f"{png_dir}/title.png"
             title_img.save(title_png, optimize=keep_temp)
-            title_duration = probe_duration(title_mp3)
-            title_cards_info = [(title_png, title_duration)]
+            title_cards_info = [(title_png, 0.0)]  # Duration will be set below
+        
+        # Probe title duration once for both modes
+        title_duration = probe_duration(title_mp3)
+        
+        # Update duration in title_cards_info if not using word-by-word (single card case)
+        if not self.cfg.settings.word_by_word_animation:
+            title_cards_info = [(title_cards_info[0][0], title_duration)]
         
         # Estimate how much time we have for comments
-        title_duration = probe_duration(title_mp3)
         remaining_duration = max(0, target_duration - title_duration)
         
         # Select comments to fit target duration, but handle case where title
