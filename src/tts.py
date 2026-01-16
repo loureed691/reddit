@@ -29,7 +29,7 @@ logger = get_logger(__name__)
 class TTSOptions:
     engine: str = "edge_tts"  # edge_tts | pyttsx3
     edge_voice: str = "en-US-AriaNeural"  # Optimized for viral content
-    rate: str = "+12%"  # Slightly faster for better engagement (viral optimization)
+    rate: str = "+15%"  # Optimized rate for maximum retention (viral optimization 2026)
     volume: str = "+0%"
 
 @dataclass

@@ -5,17 +5,68 @@ Renders title and comment cards as PNG images with:
 - Optimized text wrapping algorithm
 - Pre-calculated dimensions to avoid image recreation
 - Rounded corners and visual polish
+- Viral emoji enhancement for better engagement (English only)
 """
 from __future__ import annotations
 import math
 import os
 import textwrap
+import re
 from dataclasses import dataclass
 from typing import List, Tuple, Optional
 
 from PIL import Image, ImageDraw, ImageFont
 
 from functools import lru_cache
+
+# Pre-compile emoji patterns for performance
+_EMOJI_PATTERNS = [
+    # Questions and curiosity (high engagement)
+    (re.compile(r'\b(what|why|how|when|who|where)\b', re.IGNORECASE), '🤔'),
+    (re.compile(r'\b(secret|hidden|mystery|unknown)\b', re.IGNORECASE), '🔍'),
+    
+    # Emotional content (viral triggers)
+    (re.compile(r'\b(scar(y|iest|ed)|creepy|horror|terrify(ing)?|nightmare)\b', re.IGNORECASE), '😱'),
+    (re.compile(r'\b(love|heart|romantic|relationship)\b', re.IGNORECASE), '❤️'),
+    (re.compile(r'\b(funny|hilarious|laugh|joke|lol)\b', re.IGNORECASE), '😂'),
+    (re.compile(r'\b(angry|mad|furious|rage)\b', re.IGNORECASE), '😠'),
+    (re.compile(r'\b(sad|depressing|cry|tear)\b', re.IGNORECASE), '😢'),
+    (re.compile(r'\b(surprise|shocked|wow|amazing)\b', re.IGNORECASE), '😲'),
+    
+    # Success and achievement
+    (re.compile(r'\b(win|won|success(ful)?|achieve(ment)?|victory|best)\b', re.IGNORECASE), '🏆'),
+    (re.compile(r'\b(money|rich|wealth|dollar|pay)\b', re.IGNORECASE), '💰'),
+    
+    # Warning and danger
+    (re.compile(r'\b(danger|warning|alert|careful|risk)\b', re.IGNORECASE), '⚠️'),
+    (re.compile(r'\b(wrong|mistake|fail|error|bad)\b', re.IGNORECASE), '❌'),
+    (re.compile(r'\b(right|correct|good|great)\b', re.IGNORECASE), '✅'),
+    
+    # Technology and gaming
+    (re.compile(r'\b(game|gaming|play|video game)\b', re.IGNORECASE), '🎮'),
+    (re.compile(r'\b(tech|computer|phone|app)\b', re.IGNORECASE), '💻'),
+    
+    # Food and lifestyle
+    (re.compile(r'\b(food|eat|restaurant|meal)\b', re.IGNORECASE), '🍔'),
+    (re.compile(r'\b(coffee|drink|beverage)\b', re.IGNORECASE), '☕'),
+    
+    # Time and urgency
+    (re.compile(r'\b(now|today|urgent|breaking|new)\b', re.IGNORECASE), '🔥'),
+    (re.compile(r'\b(night|dark|midnight)\b', re.IGNORECASE), '🌙'),
+    
+    # People and social
+    (re.compile(r'\b(people|person|human|someone)\b', re.IGNORECASE), '👥'),
+    (re.compile(r'\b(karen|entitled|rude)\b', re.IGNORECASE), '😤'),
+    
+    # Places
+    (re.compile(r'\b(home|house|apartment)\b', re.IGNORECASE), '🏠'),
+    (re.compile(r'\b(work|job|office|boss)\b', re.IGNORECASE), '💼'),
+    (re.compile(r'\b(school|college|university|class)\b', re.IGNORECASE), '🎓'),
+    
+    # Stories and experiences
+    (re.compile(r'\b(story|time|experience|happened)\b', re.IGNORECASE), '📖'),
+    (re.compile(r'\b(tip|hack|trick|advice)\b', re.IGNORECASE), '💡'),
+]
 
 @dataclass
 class CardTheme:
@@ -137,15 +188,45 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, 
         lines.append(cur)
     return lines
 
+def _add_viral_emoji(title: str) -> str:
+    """Add relevant emoji to title for viral engagement (English only).
+    
+    Uses keyword matching to add contextually appropriate emojis.
+    Only works with English-language titles.
+    
+    Note: Emoji is added at render time and becomes part of the displayed title.
+    This may affect text wrapping and layout calculations.
+    """
+    # Check for existing emojis first (optimization - avoid pattern matching if not needed)
+    has_emoji = any(
+        0x1F300 <= ord(char) <= 0x1F9FF or  # Main emoji range (includes emoticons 0x1F600-0x1F64F)
+        0x2600 <= ord(char) <= 0x26FF or    # Symbols (includes ❤️)
+        0x2700 <= ord(char) <= 0x27BF or    # Misc symbols
+        0x1F100 <= ord(char) <= 0x1F1FF or  # Enclosed Alphanumeric Supplement
+        0x1F200 <= ord(char) <= 0x1F2FF or  # Enclosed Ideographic Supplement
+        0x1FA70 <= ord(char) <= 0x1FAFF     # Symbols & Pictographs Extended-A
+        for char in title
+    )
+    
+    if has_emoji:
+        return title
+    
+    # Find the first matching pattern using pre-compiled patterns
+    for pattern, emoji in _EMOJI_PATTERNS:
+        if pattern.search(title):
+            return f"{emoji} {title}"
+    
+    return title
+
 def render_title_card(title: str, subtitle: str="") -> Image.Image:
     """Render a modern title card with glassmorphism effect and gradient accents.
     
-    Enhanced design features:
-    - Glassmorphism background with gradient border
-    - Larger, more prominent text
-    - Gradient accent bar with glow effect
-    - Better spacing and visual hierarchy
+    Optimized to calculate exact dimensions first to avoid recreation.
+    Includes viral emoji enhancement for better engagement.
     """
+    # Add emoji for viral engagement
+    title = _add_viral_emoji(title)
+    
     theme = CardTheme()
     W = theme.card_w
     base_h = 540
@@ -213,12 +294,16 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     y = theme.padding
     
     for line in title_lines[:10]:
+        # Add subtle text shadow for better mobile readability
+        draw.text((x+2, y+2), line, font=font_title, fill=(0, 0, 0, 180))
         draw.text((x, y), line, font=font_title, fill=theme.text)
         y += line_h_title
 
     if subtitle_lines:
         y += 16
         for line in subtitle_lines[:6]:
+            # Add subtle shadow to subtitle too
+            draw.text((x+1, y+1), line, font=font_sub, fill=(0, 0, 0, 120))
             draw.text((x, y), line, font=font_sub, fill=theme.muted)
             y += line_h_sub
 
@@ -273,34 +358,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
                          theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # Header section
+    # author row with shadow
     x = theme.padding
     y = theme.padding
-    
-    # Author name with highlight
-    author_text = f"u/{author}"
-    draw.text((x, y), author_text, font=font_author, fill=theme.accent_blue)
-    
-    # Score badge with gradient background (optimized)
-    meta = f"↑ {score:,}"
-    bbox = draw.textbbox((0, 0), meta, font=font_meta)
-    badge_w = (bbox[2] - bbox[0]) + 24
-    badge_h = (bbox[3] - bbox[1]) + 16
-    badge_x = W - theme.padding - badge_w
-    badge_y = max(0, y - 4)  # Prevent negative coordinates
-    
-    # Draw gradient badge background - reduced layers for performance
-    badge_color = (*theme.accent_purple[:3], 140)
-    draw.rounded_rectangle(
-        (badge_x, badge_y, badge_x + badge_w, badge_y + badge_h),
-        radius=16,
-        fill=badge_color
-    )
-    
-    # Draw score text
-    text_x = badge_x + 12
-    text_y = badge_y + 8
-    draw.text((text_x, text_y), meta, font=font_meta, fill=theme.text)
+    draw.text((x+2, y+2), author, font=font_author, fill=(0, 0, 0, 180))
+    draw.text((x, y), author, font=font_author, fill=theme.text)
+    meta = f"score {score}"
+    bbox = draw.textbbox((0,0), meta, font=font_meta)
+    meta_x = W-theme.padding-(bbox[2]-bbox[0])
+    draw.text((meta_x+1, y+7), meta, font=font_meta, fill=(0, 0, 0, 120))
+    draw.text((meta_x, y+6), meta, font=font_meta, fill=theme.muted)
 
     # Enhanced divider with gradient (optimized for performance)
     y += 64
@@ -321,9 +388,62 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     
     y += 28
 
-    # Body text with enhanced spacing
+    # body with shadow for better readability
     for line in body_lines[:40]:
+        draw.text((x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
         draw.text((x, y), line, font=font_body, fill=theme.text)
         y += line_h
 
+    return img
+
+def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Image.Image:
+    """Render an engaging call-to-action outro card for viral engagement.
+    
+    Encourages viewers to like, follow, and engage - critical for algorithm performance.
+    Optimized for TikTok, YouTube Shorts, and Instagram Reels.
+    
+    Args:
+        bottom_text: Customizable text shown at the bottom of the card
+    """
+    theme = CardTheme()
+    W = theme.card_w
+    H = 720
+    
+    img = Image.new("RGBA", (W, H), (0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
+    
+    # Large CTA fonts
+    font_main = _load_font(48)
+    font_sub = _load_font(32)
+    
+    y = 120
+    
+    # Main CTA with emojis - improved contrast colors for accessibility
+    cta_lines = [
+        ("👍 Like", (255, 120, 120, 255)),      # Slightly lighter red for better contrast
+        ("🔔 Follow", theme.accent),             # Use theme accent color
+        ("💬 Comment", (255, 220, 100, 255)),   # Brighter yellow for better contrast
+    ]
+    
+    line_height = 120
+    for text, color in cta_lines:
+        # Center the text
+        bbox = draw.textbbox((0, 0), text, font=font_main)
+        text_w = bbox[2] - bbox[0]
+        x = (W - text_w) // 2
+        
+        # Add shadow
+        draw.text((x+3, y+3), text, font=font_main, fill=(0, 0, 0, 180))
+        draw.text((x, y), text, font=font_main, fill=color)
+        y += line_height
+    
+    # Bottom text (customizable)
+    y = H - 100
+    bbox = draw.textbbox((0, 0), bottom_text, font=font_sub)
+    text_w = bbox[2] - bbox[0]
+    x = (W - text_w) // 2
+    draw.text((x+2, y+2), bottom_text, font=font_sub, fill=(0, 0, 0, 120))
+    draw.text((x, y), bottom_text, font=font_sub, fill=theme.muted)
+    
     return img
