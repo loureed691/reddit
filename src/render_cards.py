@@ -268,3 +268,54 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
         y += line_h
 
     return img
+
+def render_outro_cta_card() -> Image.Image:
+    """Render an engaging call-to-action outro card for viral engagement.
+    
+    Encourages viewers to like, follow, and engage - critical for algorithm performance.
+    Optimized for TikTok, YouTube Shorts, and Instagram Reels.
+    """
+    theme = CardTheme()
+    W = theme.card_w
+    H = 720
+    
+    img = Image.new("RGBA", (W, H), (0,0,0,0))
+    draw = ImageDraw.Draw(img)
+    _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
+    
+    # Large CTA emoji and text
+    font_emoji = _load_font(80)
+    font_main = _load_font(48)
+    font_sub = _load_font(32)
+    
+    y = 120
+    
+    # Main CTA with emojis
+    cta_lines = [
+        ("👍 Like", (255, 100, 100, 255)),
+        ("🔔 Follow", (100, 200, 255, 255)),
+        ("💬 Comment", (255, 200, 100, 255)),
+    ]
+    
+    line_height = 120
+    for text, color in cta_lines:
+        # Center the text
+        bbox = draw.textbbox((0, 0), text, font=font_main)
+        text_w = bbox[2] - bbox[0]
+        x = (W - text_w) // 2
+        
+        # Add shadow
+        draw.text((x+3, y+3), text, font=font_main, fill=(0, 0, 0, 180))
+        draw.text((x, y), text, font=font_main, fill=color)
+        y += line_height
+    
+    # Bottom text
+    y = H - 100
+    bottom_text = "More stories coming soon!"
+    bbox = draw.textbbox((0, 0), bottom_text, font=font_sub)
+    text_w = bbox[2] - bbox[0]
+    x = (W - text_w) // 2
+    draw.text((x+2, y+2), bottom_text, font=font_sub, fill=(0, 0, 0, 120))
+    draw.text((x, y), bottom_text, font=font_sub, fill=theme.muted)
+    
+    return img

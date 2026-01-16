@@ -347,6 +347,16 @@ class RedditVideoFactory:
             for img_path, dur in comment_cards:
                 images.append(img_path)
                 durations.append(dur)
+        
+        # Add outro CTA card for viral engagement (if enabled)
+        if self.cfg.settings.add_outro_cta:
+            logger.debug("Adding outro CTA card for viral engagement")
+            from ..render_cards import render_outro_cta_card
+            outro_card = render_outro_cta_card()
+            outro_path = f"{png_dir}/outro_cta.png"
+            outro_card.save(outro_path, "PNG", optimize=True)
+            images.append(outro_path)
+            durations.append(3.0)  # Show outro for 3 seconds
 
         out_dir = f"results/{thread.subreddit}"
         _ensure_dir(out_dir)
