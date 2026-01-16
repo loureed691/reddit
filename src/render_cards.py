@@ -422,7 +422,7 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     # Main CTA with emojis - improved contrast colors for accessibility
     cta_lines = [
         ("👍 Like", (255, 120, 120, 255)),      # Slightly lighter red for better contrast
-        ("🔔 Follow", theme.accent),             # Use theme accent color
+        ("🔔 Follow", theme.accent_blue),        # Use theme accent color
         ("💬 Comment", (255, 220, 100, 255)),   # Brighter yellow for better contrast
     ]
     
