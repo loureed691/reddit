@@ -87,16 +87,13 @@ async def _edge_tts_with_word_timings(text: str, mp3_path: str, opts: TTSOptions
                 duration = chunk.get("duration", 0) / 10_000_000.0  # Convert from 100ns units to seconds
                 
                 if word_text:
-                    if duration > 0:
-                        word_timings.append(WordTiming(
-                            text=word_text,
-                            offset=offset,
-                            duration=duration
-                        ))
-                    else:
-                        logger.debug(
-                            f"Skipping word '{word_text}' with non-positive duration ({duration}s) at offset {offset}s"
-                        )
+                    # Accept all word timings, including those with duration=0
+                    # (which can occur for punctuation or silence per Edge-TTS API spec)
+                    word_timings.append(WordTiming(
+                        text=word_text,
+                        offset=offset,
+                        duration=duration
+                    ))
         
         # Write audio data to file
         if audio_chunks:
@@ -132,7 +129,10 @@ def tts_to_mp3_with_word_timings(text: str, mp3_path: str, opts: TTSOptions) -> 
             return asyncio.run(_edge_tts_with_word_timings(text, mp3_path, opts))
         except Exception as e:
             # Log the error and fallback to pyttsx3
-            logger.warning(f"edge-tts failed ({e}), falling back to pyttsx3")
+            logger.warning(
+                f"edge-tts failed ({e.__class__.__name__}: {e}), falling back to pyttsx3 "
+                "(word timings will not be available)"
+            )
             engine = "pyttsx3"
 
     if engine == "pyttsx3":
@@ -150,7 +150,10 @@ def tts_to_mp3_with_word_timings(text: str, mp3_path: str, opts: TTSOptions) -> 
                 os.remove(tmp_wav)
             except Exception as cleanup_error:
                 logger.debug(f"Failed to remove temporary WAV file {tmp_wav}: {cleanup_error}")
-            logger.debug(f"TTS generated successfully with pyttsx3 (no word timings available)")
+            logger.warning(
+                "TTS generated with pyttsx3: word timings are not supported by this engine. "
+                "For word-by-word animation, ensure edge-tts is available and has internet connectivity."
+            )
             return []  # pyttsx3 doesn't provide word timings
         except Exception as e:
             logger.error(f"TTS failed (pyttsx3): {e}")
