@@ -107,7 +107,7 @@ def _add_viral_emoji(title: str) -> str:
         (r'\b(secret|hidden|mystery|unknown)\b', '🔍'),
         
         # Emotional content (viral triggers)
-        (r'\b(scary|creepy|horror|terrifying|nightmare)\b', '😱'),
+        (r'\b(scar(y|iest|ed)|creepy|horror|terrify(ing)?|nightmare)\b', '😱'),
         (r'\b(love|heart|romantic|relationship)\b', '❤️'),
         (r'\b(funny|hilarious|laugh|joke|lol)\b', '😂'),
         (r'\b(angry|mad|furious|rage)\b', '😠'),
@@ -115,7 +115,7 @@ def _add_viral_emoji(title: str) -> str:
         (r'\b(surprise|shocked|wow|amazing)\b', '😲'),
         
         # Success and achievement
-        (r'\b(win|success|achievement|victory|best)\b', '🏆'),
+        (r'\b(win|won|success(ful)?|achieve(ment)?|victory|best)\b', '🏆'),
         (r'\b(money|rich|wealth|dollar|pay)\b', '💰'),
         
         # Warning and danger
