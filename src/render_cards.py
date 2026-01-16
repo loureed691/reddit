@@ -5,7 +5,7 @@ Renders title and comment cards as PNG images with:
 - Optimized text wrapping algorithm
 - Pre-calculated dimensions to avoid image recreation
 - Rounded corners and visual polish
-- Viral emoji enhancement for better engagement
+- Viral emoji enhancement for better engagement (English only)
 """
 from __future__ import annotations
 import math
@@ -18,6 +18,55 @@ from typing import List, Tuple, Optional
 from PIL import Image, ImageDraw, ImageFont
 
 from functools import lru_cache
+
+# Pre-compile emoji patterns for performance
+_EMOJI_PATTERNS = [
+    # Questions and curiosity (high engagement)
+    (re.compile(r'\b(what|why|how|when|who|where)\b', re.IGNORECASE), '🤔'),
+    (re.compile(r'\b(secret|hidden|mystery|unknown)\b', re.IGNORECASE), '🔍'),
+    
+    # Emotional content (viral triggers)
+    (re.compile(r'\b(scar(y|iest|ed)|creepy|horror|terrify(ing)?|nightmare)\b', re.IGNORECASE), '😱'),
+    (re.compile(r'\b(love|heart|romantic|relationship)\b', re.IGNORECASE), '❤️'),
+    (re.compile(r'\b(funny|hilarious|laugh|joke|lol)\b', re.IGNORECASE), '😂'),
+    (re.compile(r'\b(angry|mad|furious|rage)\b', re.IGNORECASE), '😠'),
+    (re.compile(r'\b(sad|depressing|cry|tear)\b', re.IGNORECASE), '😢'),
+    (re.compile(r'\b(surprise|shocked|wow|amazing)\b', re.IGNORECASE), '😲'),
+    
+    # Success and achievement
+    (re.compile(r'\b(win|won|success(ful)?|achieve(ment)?|victory|best)\b', re.IGNORECASE), '🏆'),
+    (re.compile(r'\b(money|rich|wealth|dollar|pay)\b', re.IGNORECASE), '💰'),
+    
+    # Warning and danger
+    (re.compile(r'\b(danger|warning|alert|careful|risk)\b', re.IGNORECASE), '⚠️'),
+    (re.compile(r'\b(wrong|mistake|fail|error|bad)\b', re.IGNORECASE), '❌'),
+    (re.compile(r'\b(right|correct|good|great)\b', re.IGNORECASE), '✅'),
+    
+    # Technology and gaming
+    (re.compile(r'\b(game|gaming|play|video game)\b', re.IGNORECASE), '🎮'),
+    (re.compile(r'\b(tech|computer|phone|app)\b', re.IGNORECASE), '💻'),
+    
+    # Food and lifestyle
+    (re.compile(r'\b(food|eat|restaurant|meal)\b', re.IGNORECASE), '🍔'),
+    (re.compile(r'\b(coffee|drink|beverage)\b', re.IGNORECASE), '☕'),
+    
+    # Time and urgency
+    (re.compile(r'\b(now|today|urgent|breaking|new)\b', re.IGNORECASE), '🔥'),
+    (re.compile(r'\b(night|dark|midnight)\b', re.IGNORECASE), '🌙'),
+    
+    # People and social
+    (re.compile(r'\b(people|person|human|someone)\b', re.IGNORECASE), '👥'),
+    (re.compile(r'\b(karen|entitled|rude)\b', re.IGNORECASE), '😤'),
+    
+    # Places
+    (re.compile(r'\b(home|house|apartment)\b', re.IGNORECASE), '🏠'),
+    (re.compile(r'\b(work|job|office|boss)\b', re.IGNORECASE), '💼'),
+    (re.compile(r'\b(school|college|university|class)\b', re.IGNORECASE), '🎓'),
+    
+    # Stories and experiences
+    (re.compile(r'\b(story|time|experience|happened)\b', re.IGNORECASE), '📖'),
+    (re.compile(r'\b(tip|hack|trick|advice)\b', re.IGNORECASE), '💡'),
+]
 
 @dataclass
 class CardTheme:
@@ -92,77 +141,32 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, 
     return lines
 
 def _add_viral_emoji(title: str) -> str:
-    """Add relevant emoji to title for viral engagement.
+    """Add relevant emoji to title for viral engagement (English only).
     
     Uses keyword matching to add contextually appropriate emojis.
-    Modern audiences (especially Gen Z) respond better to emoji-enhanced titles.
+    Only works with English-language titles.
+    
+    Note: Emoji is added at render time and becomes part of the displayed title.
+    This may affect text wrapping and layout calculations.
     """
-    # Normalize title for matching
-    title_lower = title.lower()
+    # Check for existing emojis first (optimization - avoid pattern matching if not needed)
+    has_emoji = any(
+        0x1F300 <= ord(char) <= 0x1F9FF or  # Main emoji range (includes emoticons 0x1F600-0x1F64F)
+        0x2600 <= ord(char) <= 0x26FF or    # Symbols (includes ❤️)
+        0x2700 <= ord(char) <= 0x27BF or    # Misc symbols
+        0x1F100 <= ord(char) <= 0x1F1FF or  # Enclosed Alphanumeric Supplement
+        0x1F200 <= ord(char) <= 0x1F2FF or  # Enclosed Ideographic Supplement
+        0x1FA70 <= ord(char) <= 0x1FAFF     # Symbols & Pictographs Extended-A
+        for char in title
+    )
     
-    # Emoji mapping based on content type (prioritized by viral performance)
-    emoji_patterns = [
-        # Questions and curiosity (high engagement)
-        (r'\b(what|why|how|when|who|where)\b', '🤔'),
-        (r'\b(secret|hidden|mystery|unknown)\b', '🔍'),
-        
-        # Emotional content (viral triggers)
-        (r'\b(scar(y|iest|ed)|creepy|horror|terrify(ing)?|nightmare)\b', '😱'),
-        (r'\b(love|heart|romantic|relationship)\b', '❤️'),
-        (r'\b(funny|hilarious|laugh|joke|lol)\b', '😂'),
-        (r'\b(angry|mad|furious|rage)\b', '😠'),
-        (r'\b(sad|depressing|cry|tear)\b', '😢'),
-        (r'\b(surprise|shocked|wow|amazing)\b', '😲'),
-        
-        # Success and achievement
-        (r'\b(win|won|success(ful)?|achieve(ment)?|victory|best)\b', '🏆'),
-        (r'\b(money|rich|wealth|dollar|pay)\b', '💰'),
-        
-        # Warning and danger
-        (r'\b(danger|warning|alert|careful|risk)\b', '⚠️'),
-        (r'\b(wrong|mistake|fail|error|bad)\b', '❌'),
-        (r'\b(right|correct|good|great)\b', '✅'),
-        
-        # Technology and gaming
-        (r'\b(game|gaming|play|video game)\b', '🎮'),
-        (r'\b(tech|computer|phone|app)\b', '💻'),
-        
-        # Food and lifestyle
-        (r'\b(food|eat|restaurant|meal)\b', '🍔'),
-        (r'\b(coffee|drink|beverage)\b', '☕'),
-        
-        # Time and urgency
-        (r'\b(now|today|urgent|breaking|new)\b', '🔥'),
-        (r'\b(night|dark|midnight)\b', '🌙'),
-        
-        # People and social
-        (r'\b(people|person|human|someone)\b', '👥'),
-        (r'\b(karen|entitled|rude)\b', '😤'),
-        
-        # Places
-        (r'\b(home|house|apartment)\b', '🏠'),
-        (r'\b(work|job|office|boss)\b', '💼'),
-        (r'\b(school|college|university|class)\b', '🎓'),
-        
-        # Stories and experiences
-        (r'\b(story|time|experience|happened)\b', '📖'),
-        (r'\b(tip|hack|trick|advice)\b', '💡'),
-    ]
+    if has_emoji:
+        return title
     
-    # Find the first matching pattern
-    for pattern, emoji in emoji_patterns:
-        if re.search(pattern, title_lower):
-            # Add emoji at the start if title doesn't already have emojis
-            # Check for common emoji Unicode ranges
-            has_emoji = any(
-                0x1F300 <= ord(char) <= 0x1F9FF or  # Main emoji range (includes emoticons 0x1F600-0x1F64F)
-                0x2600 <= ord(char) <= 0x26FF or    # Symbols (includes ❤️)
-                0x2700 <= ord(char) <= 0x27BF       # Misc symbols
-                for char in title
-            )
-            if not has_emoji:
-                return f"{emoji} {title}"
-            break
+    # Find the first matching pattern using pre-compiled patterns
+    for pattern, emoji in _EMOJI_PATTERNS:
+        if pattern.search(title):
+            return f"{emoji} {title}"
     
     return title
 
@@ -276,11 +280,14 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
 
     return img
 
-def render_outro_cta_card() -> Image.Image:
+def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Image.Image:
     """Render an engaging call-to-action outro card for viral engagement.
     
     Encourages viewers to like, follow, and engage - critical for algorithm performance.
     Optimized for TikTok, YouTube Shorts, and Instagram Reels.
+    
+    Args:
+        bottom_text: Customizable text shown at the bottom of the card
     """
     theme = CardTheme()
     W = theme.card_w
@@ -296,11 +303,11 @@ def render_outro_cta_card() -> Image.Image:
     
     y = 120
     
-    # Main CTA with emojis
+    # Main CTA with emojis - improved contrast colors for accessibility
     cta_lines = [
-        ("👍 Like", (255, 100, 100, 255)),
-        ("🔔 Follow", (100, 200, 255, 255)),
-        ("💬 Comment", (255, 200, 100, 255)),
+        ("👍 Like", (255, 120, 120, 255)),      # Slightly lighter red for better contrast
+        ("🔔 Follow", theme.accent),             # Use theme accent color
+        ("💬 Comment", (255, 220, 100, 255)),   # Brighter yellow for better contrast
     ]
     
     line_height = 120
@@ -315,9 +322,8 @@ def render_outro_cta_card() -> Image.Image:
         draw.text((x, y), text, font=font_main, fill=color)
         y += line_height
     
-    # Bottom text
+    # Bottom text (customizable)
     y = H - 100
-    bottom_text = "More stories coming soon!"
     bbox = draw.textbbox((0, 0), bottom_text, font=font_sub)
     text_w = bbox[2] - bbox[0]
     x = (W - text_w) // 2

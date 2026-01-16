@@ -236,41 +236,41 @@ You can customize these in `config.json` under the `voice` section. Other recomm
 - `en-US-AndrewMultilingualNeural` - Mature, engaging male voice
 - `en-US-BrianMultilingualNeural` - Smooth, clear tone
 
-For maximum virality, keep the speech rate between +12% and +18% - this matches the pacing expectations of modern short-form video audiences while maintaining clarity and naturalness.
+For maximum virality, keep the speech rate between +10% and +15% - this matches the pacing expectations of modern short-form video audiences while maintaining clarity and naturalness.
 
-## Viral Enhancement Features (2026)
+## Viral Enhancement Features
 
-This tool includes cutting-edge optimizations for maximum virality and retention:
+This tool includes optimizations designed to improve engagement and retention:
 
-### 1. Smart Emoji Enhancement
+### 1. Smart Emoji Enhancement (English only)
 Titles are automatically enhanced with contextually relevant emojis:
 - Questions get 🤔 ("What happened to you?")
 - Scary stories get 😱 ("Creepiest experience")
 - Success stories get 🏆 ("Won the lottery")
 - Gaming content gets 🎮
-- 40+ patterns covering emotions, topics, and content types
+- 26 patterns covering emotions, topics, and content types
+
+**Note**: Emoji enhancement currently only works with English-language titles. Non-English titles will not have emojis added.
 
 ### 2. Text Shadows for Mobile
-All text includes subtle drop shadows for better readability on:
+All text includes subtle drop shadows (1-3px offset) for better readability on:
 - All screen types (OLED, LCD, outdoor viewing)
 - Various brightness levels
 - Different background colors
 - Mobile devices (primary platform for short-form content)
 
 ### 3. Outro CTA Card
-Every video ends with a 3-second call-to-action screen:
+Every video ends with a 3-second call-to-action screen (with silent audio):
 - **👍 Like** - Encourages engagement
 - **🔔 Follow** - Builds audience
 - **💬 Comment** - Drives algorithm performance
 - Can be disabled via config: `"add_outro_cta": false`
+- Bottom text can be customized via config: `"outro_cta_text"`
+
+**Note**: The outro card adds 3 seconds of silent video at the end. This is intentional to allow viewers time to interact with the CTAs.
 
 ### Impact on Metrics
-Based on viral content analysis, these optimizations target:
-- **10-20%** better retention (faster pacing + visual hooks)
-- **15-30%** more engagement (emojis + CTA card)
-- **Better algorithm performance** (higher engagement signals)
-
-*Note: Actual results vary by content, audience, and platform. These are directional targets based on industry research.*
+These optimizations are designed to improve engagement metrics, though actual results will vary significantly based on content quality, audience, and platform algorithms. Consider A/B testing to measure impact for your specific use case.
 
 ## Background Viral Optimization
 
