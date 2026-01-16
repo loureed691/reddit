@@ -42,7 +42,7 @@ def _sanitize_folder(s: str) -> str:
 
 def _sanitize_filename(s: str) -> str:
     import re
-    s = re.sub(r'[?\\"%*:|<>]', "", (s or "video"))
+    s = re.sub(r'[?\\"%*:|<>/]', "", (s or "video"))
     s = re.sub(r"\s+", " ", s).strip()
     return s or "video"
 
