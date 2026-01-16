@@ -73,15 +73,22 @@ class BackgroundConfig:
     auto_generate_background: bool = True
     background_seconds: int = 0
     background_path: Optional[str] = None
+    style: str = "gradient"  # gradient, radial, or noise
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "BackgroundConfig":
+        # Validate background style
+        style = str(d.get("style", "gradient")).lower()
+        if style not in ("gradient", "radial", "noise"):
+            style = "gradient"  # Default to gradient for viral content
+        
         return BackgroundConfig(
             enable_extra_audio=_to_bool(d.get("enable_extra_audio", True), True),
             background_audio_volume=_to_float(d.get("background_audio_volume", 0.12), 0.12),
             auto_generate_background=_to_bool(d.get("auto_generate_background", True), True),
             background_seconds=_to_int(d.get("background_seconds", 0), 0),
             background_path=d.get("background_path", None),
+            style=style,
         )
 
 @dataclass

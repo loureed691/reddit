@@ -244,6 +244,7 @@ class RedditVideoFactory:
                     self.cfg.settings.resolution_w,
                     self.cfg.settings.resolution_h,
                     seconds=seconds,
+                    style=bg_cfg.style,
                 )
             else:
                 raise FileNotFoundError("No background provided and auto_generate_background=false")

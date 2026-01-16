@@ -15,7 +15,8 @@
       "enable_extra_audio": true,
       "background_audio_volume": 0.12,
       "auto_generate_background": true,
-      "background_seconds": 0
+      "background_seconds": 0,
+      "style": "gradient"
     },
     "video_duration": {
       "mode": "short",
