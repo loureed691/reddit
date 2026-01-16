@@ -100,11 +100,15 @@ def concat_audio(audio_paths: List[str], out_mp3: str) -> float:
     
     streams = [ffmpeg.input(p) for p in audio_paths]
     concat = ffmpeg.concat(*streams, a=1, v=0)
-    (
-        ffmpeg.output(concat, out_mp3, **{"b:a":"192k"})
-        .overwrite_output()
-        .run(quiet=True, capture_stderr=True)
-    )
+    try:
+        (
+            ffmpeg.output(concat, out_mp3, **{"b:a":"192k"})
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+    except ffmpeg.Error as e:
+        err = e.stderr.decode("utf8", errors="ignore") if e.stderr else str(e)
+        raise RuntimeError(f"ffmpeg failed to concatenate audio files:\n{err}")
     total_duration = sum(max(0.0, probe_duration(p)) for p in audio_paths)
     logger.debug(f"Audio concatenated: {total_duration:.2f}s total duration")
     return total_duration

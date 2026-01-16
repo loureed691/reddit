@@ -44,13 +44,17 @@ def _ensure_dir(path: str) -> None:
 
 def _ffmpeg_wav_to_mp3(wav_path: str, mp3_path: str) -> None:
     _ensure_dir(mp3_path)
-    (
-        ffmpeg
-        .input(wav_path)
-        .output(mp3_path, acodec="libmp3lame", **{"b:a": "192k"})
-        .overwrite_output()
-        .run(quiet=True)
-    )
+    try:
+        (
+            ffmpeg
+            .input(wav_path)
+            .output(mp3_path, acodec="libmp3lame", **{"b:a": "192k"})
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+    except ffmpeg.Error as e:
+        err = e.stderr.decode("utf8", errors="ignore") if e.stderr else str(e)
+        raise RuntimeError(f"ffmpeg failed to convert WAV to MP3:\n{err}")
 
 async def _edge_tts_async(text: str, mp3_path: str, opts: TTSOptions) -> None:
     import edge_tts
