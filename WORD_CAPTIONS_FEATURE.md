@@ -2,7 +2,7 @@
 
 ## Overview
 
-This feature implements viral-style word-by-word text animation that synchronizes perfectly with spoken audio - the same effect popularized on TikTok, YouTube Shorts, and Instagram Reels. Each word appears exactly when it's being spoken, dramatically improving viewer engagement.
+This feature implements viral-style word-by-word text animation that synchronizes perfectly with spoken audio - the same effect popularized on TikTok, YouTube Shorts, and Instagram Reels. Each word appears on top of the Reddit cards exactly when it's being spoken, dramatically improving viewer engagement.
 
 ## How It Works
 
@@ -12,14 +12,15 @@ This feature implements viral-style word-by-word text animation that synchronize
 
 3. **FFmpeg Filter Generation**: The system generates a complex FFmpeg drawtext filter chain, with each word configured to appear only during its specific time window.
 
-4. **Video Rendering**: FFmpeg applies the filter chain during video encoding, showing each word at precisely the right moment.
+4. **Video Rendering**: FFmpeg overlays Reddit cards on the background, then applies the word caption filters on top, showing each word at precisely the right moment on the cards.
 
 ## Features
 
 - ✅ **Automatic Word Timing**: Extracts precise word-level timestamps from TTS audio
 - ✅ **Configurable Styling**: Customize font size, colors, borders, and position
+- ✅ **Cards + Captions**: Word-by-word text appears ON TOP of Reddit cards
 - ✅ **Seamless Integration**: Works with existing video pipeline
-- ✅ **Backward Compatible**: Falls back to static cards when disabled or unavailable
+- ✅ **Backward Compatible**: Disabling shows only static cards (original behavior)
 - ✅ **Debug Support**: Exports timestamp JSON files for troubleshooting
 
 ## Configuration
@@ -61,15 +62,15 @@ The system gracefully handles edge cases:
 
 1. **No Internet / edge-tts Unavailable**: 
    - Falls back to pyttsx3 TTS (offline)
-   - Uses static card overlays instead of word captions
+   - Shows only static card overlays without word captions
    - No functionality lost, just different visual style
 
 2. **TTS Timestamp Extraction Fails**:
-   - Automatically falls back to static cards
+   - Automatically shows only static cards
    - Logs warning for debugging
 
 3. **Word Captions Disabled in Config**:
-   - Uses original static card rendering
+   - Shows only static cards (original behavior)
    - No performance impact
 
 ## Technical Implementation
@@ -87,9 +88,10 @@ The system gracefully handles edge cases:
    - Timestamp JSON export
 
 3. **src/builder.py**
-   - Split rendering into two paths
-   - Added word caption rendering via raw ffmpeg
-   - Maintains static overlay rendering
+   - Added `_render_video_with_cards_and_word_captions()` function
+   - Overlays Reddit cards on background, then adds word captions on top
+   - Uses complex FFmpeg filter chains for card + caption composition
+   - Maintains original `_render_video_with_static_overlays()` for fallback
 
 4. **src/factory/__init__.py**
    - Added timestamp-aware comment selection
@@ -128,15 +130,20 @@ Potential improvements for future versions:
 
 ## Example Output
 
-When enabled, instead of seeing a static card with full text, viewers see:
-```
-[0.0s - 0.3s]  "This"
-[0.3s - 0.5s]  "is"
-[0.5s - 0.7s]  "an"
-[0.7s - 1.0s]  "example"
-```
+When enabled, viewers see Reddit cards (title and comment cards) displayed on the background, with word-by-word captions overlaid on top:
 
-Each word appears centered at the bottom third of the screen, synchronized perfectly with the audio.
+**Visual Layers (bottom to top):**
+1. Animated gradient background
+2. Reddit card (title or comment card) centered on screen
+3. Word-by-word caption appearing on the card:
+   ```
+   [0.0s - 0.3s]  "This"
+   [0.3s - 0.5s]  "is"
+   [0.5s - 0.7s]  "an"
+   [0.7s - 1.0s]  "example"
+   ```
+
+Each word appears centered at the configured Y position (default: 70% from top = bottom third), synchronized perfectly with the audio, overlaid on top of the Reddit card content.
 
 ## Support
 

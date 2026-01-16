@@ -139,7 +139,7 @@ def render_video(
     
     Args:
         word_captions_filter: Optional ffmpeg drawtext filter chain for word-by-word captions.
-                             If provided, renders using raw ffmpeg command with filter_complex.
+                             If provided, captions are overlaid on top of the Reddit cards.
     """
     if len(image_paths) != len(image_durations):
         raise ValueError("image_paths and image_durations mismatch")
@@ -153,14 +153,18 @@ def render_video(
     total_len = max(0.1, sum(max(0.0, d) for d in image_durations))
     logger.debug(f"Total video length: {total_len:.2f}s")
 
-    # Use word captions rendering if filter is provided
+    # Always render with card overlays, optionally add word captions on top
     if word_captions_filter:
-        _render_video_with_word_captions(
+        _render_video_with_cards_and_word_captions(
             background_mp4=background_mp4,
             out_mp4=out_mp4,
             audio_mp3=audio_mp3,
+            image_paths=image_paths,
+            image_durations=image_durations,
             W=W,
             H=H,
+            screenshot_width=screenshot_width,
+            opacity=opacity,
             total_len=total_len,
             word_captions_filter=word_captions_filter,
             bg_audio_mp3=bg_audio_mp3,
@@ -182,40 +186,88 @@ def render_video(
             bg_audio_volume=bg_audio_volume,
         )
 
-def _render_video_with_word_captions(
+def _render_video_with_cards_and_word_captions(
     background_mp4: str,
     out_mp4: str,
     audio_mp3: str,
+    image_paths: List[str],
+    image_durations: List[float],
     W: int,
     H: int,
+    screenshot_width: int,
+    opacity: float,
     total_len: float,
     word_captions_filter: str,
     bg_audio_mp3: Optional[str] = None,
     bg_audio_volume: float = 0.0,
 ):
-    """Render video with word-by-word captions using raw ffmpeg command."""
-    logger.info("Rendering with word-by-word captions")
+    """Render video with Reddit cards AND word-by-word captions on top."""
+    logger.info("Rendering with Reddit cards + word-by-word captions")
     
     import subprocess
-    import tempfile
     
-    # Build filter_complex for video processing
-    # Scale background, then apply word caption drawtext filters
-    filter_complex = f"[0:v]scale={W}:{H}[scaled];[scaled]{word_captions_filter}[vout]"
+    # Build complex filter that overlays cards, then adds word captions
+    # Step 1: Scale background
+    # Step 2: Overlay each card image at the right time
+    # Step 3: Apply word caption drawtext filters on top
     
-    # Build ffmpeg command
+    # Start building filter complex
+    filter_parts = []
+    
+    # Scale background
+    filter_parts.append(f"[0:v]scale={W}:{H}[bg]")
+    
+    # Overlay cards one by one
+    t = 0.0
+    current_output = "bg"
+    for idx, (img_path, duration) in enumerate(zip(image_paths, image_durations)):
+        input_idx = idx + 2  # 0=background, 1=audio, 2+=images
+        next_output = f"v{idx}" if idx < len(image_paths) - 1 else "cards"
+        
+        # Apply opacity to all except title (first card)
+        if idx == 0:
+            # Title card - no opacity
+            filter_parts.append(
+                f"[{input_idx}:v]scale={screenshot_width}:-1[img{idx}]"
+            )
+        else:
+            # Comment cards - apply opacity
+            filter_parts.append(
+                f"[{input_idx}:v]scale={screenshot_width}:-1,colorchannelmixer=aa={opacity}[img{idx}]"
+            )
+        
+        # Overlay this card
+        filter_parts.append(
+            f"[{current_output}][img{idx}]overlay="
+            f"x=(main_w-overlay_w)/2:y=(main_h-overlay_h)/2:"
+            f"enable='between(t,{t:.3f},{t+duration:.3f})'[{next_output}]"
+        )
+        
+        current_output = next_output
+        t += duration
+    
+    # Apply word captions on top of cards
+    filter_parts.append(f"[cards]{word_captions_filter}[vout]")
+    
+    filter_complex = ";".join(filter_parts)
+    
+    # Build ffmpeg command with all image inputs
     cmd = [
         "ffmpeg",
-        "-i", background_mp4,  # Input 0: background video
-        "-i", audio_mp3,       # Input 1: main audio
+        "-i", background_mp4,  # Input 0: background
+        "-i", audio_mp3,       # Input 1: audio
     ]
     
+    # Add all card images as inputs
+    for img_path in image_paths:
+        cmd.extend(["-i", img_path])
+    
     # Add background audio if provided
-    audio_filter = None
     if bg_audio_mp3 and bg_audio_volume > 0 and os.path.exists(bg_audio_mp3):
-        cmd.extend(["-i", bg_audio_mp3])  # Input 2: background audio
+        bg_audio_idx = len(image_paths) + 2
+        cmd.extend(["-i", bg_audio_mp3])
         # Mix audio streams
-        audio_filter = f"[1:a]volume=1.0[a1];[2:a]volume={bg_audio_volume}[a2];[a1][a2]amix=duration=longest[aout]"
+        audio_filter = f"[1:a]volume=1.0[a1];[{bg_audio_idx}:a]volume={bg_audio_volume}[a2];[a1][a2]amix=duration=longest[aout]"
         cmd.extend(["-filter_complex", f"{filter_complex};{audio_filter}"])
         cmd.extend(["-map", "[vout]", "-map", "[aout]"])
     else:
@@ -237,13 +289,12 @@ def _render_video_with_word_captions(
         out_mp4
     ])
     
-    logger.debug(f"FFmpeg command: {' '.join(cmd[:10])}... (truncated)")
+    logger.debug(f"FFmpeg command with {len(image_paths)} card overlays + word captions")
     
     # Run with progress tracking
     pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
     
     try:
-        # Run ffmpeg
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
