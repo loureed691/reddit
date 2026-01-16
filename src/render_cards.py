@@ -153,15 +153,10 @@ def _add_viral_emoji(title: str) -> str:
     for pattern, emoji in emoji_patterns:
         if re.search(pattern, title_lower):
             # Add emoji at the start if title doesn't already have emojis
-            # Check for common emoji Unicode ranges:
-            # - Main emoji range: 0x1F300 - 0x1F9FF (covers most modern emojis)
-            # - Emoticons: 0x1F600 - 0x1F64F
-            # - Symbols: 0x2600 - 0x26FF (includes ❤️)
-            # - Transport: 0x1F680 - 0x1F6FF
-            # - Misc Symbols: 0x2700 - 0x27BF
+            # Check for common emoji Unicode ranges
             has_emoji = any(
-                0x1F300 <= ord(char) <= 0x1F9FF or  # Main emoji range
-                0x2600 <= ord(char) <= 0x26FF or    # Symbols
+                0x1F300 <= ord(char) <= 0x1F9FF or  # Main emoji range (includes emoticons 0x1F600-0x1F64F)
+                0x2600 <= ord(char) <= 0x26FF or    # Symbols (includes ❤️)
                 0x2700 <= ord(char) <= 0x27BF       # Misc symbols
                 for char in title
             )
