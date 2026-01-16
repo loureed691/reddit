@@ -175,18 +175,18 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
                          theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # Enhanced gradient accent bar with glow
+    # Enhanced gradient accent bar with glow (optimized)
     accent_x = theme.padding - 4
     accent_w = 12
     accent_y1 = theme.padding
     accent_y2 = H - theme.padding
     
-    # Draw glow behind accent bar
-    for i in range(8, 0, -1):
-        alpha = int(40 * (i / 8))
+    # Draw glow behind accent bar - reduced iterations for performance
+    for i in range(4, 0, -1):
+        alpha = int(50 * (i / 4))
         glow_color = (*theme.accent_blue[:3], alpha)
         draw.rounded_rectangle(
-            (accent_x - i, accent_y1, accent_x + accent_w + i, accent_y2),
+            (accent_x - i*2, accent_y1, accent_x + accent_w + i*2, accent_y2),
             radius=8, fill=glow_color
         )
     
@@ -267,7 +267,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     author_text = f"u/{author}"
     draw.text((x, y), author_text, font=font_author, fill=theme.accent_blue)
     
-    # Score badge with gradient background
+    # Score badge with gradient background (optimized)
     meta = f"↑ {score:,}"
     bbox = draw.textbbox((0, 0), meta, font=font_meta)
     badge_w = (bbox[2] - bbox[0]) + 24
@@ -275,15 +275,13 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     badge_x = W - theme.padding - badge_w
     badge_y = y - 4
     
-    # Draw gradient badge background
-    for i in range(3):
-        alpha = int(120 - i * 20)
-        badge_color = (*theme.accent_purple[:3], alpha)
-        draw.rounded_rectangle(
-            (badge_x + i, badge_y + i, badge_x + badge_w - i, badge_y + badge_h - i),
-            radius=16,
-            fill=badge_color
-        )
+    # Draw gradient badge background - reduced layers for performance
+    badge_color = (*theme.accent_purple[:3], 140)
+    draw.rounded_rectangle(
+        (badge_x, badge_y, badge_x + badge_w, badge_y + badge_h),
+        radius=16,
+        fill=badge_color
+    )
     
     # Draw score text
     text_x = badge_x + 12

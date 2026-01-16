@@ -269,17 +269,17 @@ Five state-of-the-art background styles are available, configurable in `config.j
 The background features enhanced motion patterns optimized for each style:
 
 **Particles Style:**
-- Faster, more energetic motion (1.2-1.4x zoom range)
+- Energetic motion with zoom oscillation (1.0-1.4x range)
 - Rapid circular pan with 30px radius
 - Creates excitement and energy
 
 **Waves Style:**
-- Slower, flowing motion (1.15-1.33x zoom range)
+- Slower, flowing motion with zoom oscillation (0.97-1.33x range)
 - Gentle pan with 25px radius
 - Creates a calming, hypnotic effect
 
 **Gradient/Radial Styles:**
-- Balanced motion with rotation-like effect (1.18-1.35x zoom range)
+- Balanced motion with rotation-like effect (1.01-1.35x range)
 - Circular pan with subtle asymmetric motion
 - Natural, organic feel
 

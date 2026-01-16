@@ -77,18 +77,21 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
             for i in range(3):
                 arr[:,:,i] = (color1[i] * (1 - blend) + color2[i] * blend).astype(np.uint8)
             
-            # Add bright particle spots
+            # Add bright particle spots - optimized with pre-computed coordinate arrays
             rng = np.random.default_rng()
             num_particles = 200
+            
+            # Pre-compute coordinate grids once
+            y_coords = np.arange(H, dtype=np.float32).reshape(-1, 1)
+            x_coords = np.arange(W, dtype=np.float32).reshape(1, -1)
+            
             for _ in range(num_particles):
                 cx = rng.integers(0, W)
                 cy = rng.integers(0, H)
                 size = rng.integers(20, 80)
                 brightness = rng.integers(120, 200)
                 
-                # Create particle glow
-                y_coords = np.arange(H, dtype=np.float32).reshape(-1, 1)
-                x_coords = np.arange(W, dtype=np.float32).reshape(1, -1)
+                # Create particle glow using pre-computed grids
                 dist = np.sqrt((x_coords - cx)**2 + (y_coords - cy)**2)
                 
                 # Gaussian-like falloff
