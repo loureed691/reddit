@@ -9,7 +9,7 @@
     "voice": {
       "engine": "edge_tts",
       "edge_voice": "en-US-AriaNeural",
-      "rate": "+12%",
+      "rate": "+15%",
       "volume": "+0%"
     },
     "background": {
