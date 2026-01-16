@@ -30,9 +30,9 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
     """Generate a visually engaging background image optimized for viral content.
     
     Supports multiple styles optimized for short-form video platforms:
-    - 'gradient': Smooth diagonal gradient with vibrant colors (default)
+    - 'gradient': Smooth diagonal gradient with vibrant colors
     - 'radial': Radial gradient from center (eye-catching)
-    - 'particles': Animated particle field effect (NEW - most engaging)
+    - 'particles': Animated particle field effect (NEW - most engaging, default)
     - 'waves': Flowing wave patterns (NEW - hypnotic)
     - 'noise': Original noise-based background (legacy)
     
@@ -78,18 +78,26 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
                 arr[:,:,i] = (color1[i] * (1 - blend) + color2[i] * blend).astype(np.uint8)
             
             # Add bright particle spots - optimized with pre-computed coordinate arrays
-            rng = np.random.default_rng()
+            # Particle parameters optimized for visual impact:
+            # - 200 particles: Enough density without cluttering
+            # - Size 20-80px: Varied particle sizes create depth
+            # - Brightness 120-200: Bright enough to stand out against gradient base
+            random_gen = np.random.default_rng()
             num_particles = 200
+            particle_size_min = 20
+            particle_size_max = 80
+            particle_brightness_min = 120
+            particle_brightness_max = 200
             
             # Pre-compute coordinate grids once
             y_coords = np.arange(H, dtype=np.float32).reshape(-1, 1)
             x_coords = np.arange(W, dtype=np.float32).reshape(1, -1)
             
             for _ in range(num_particles):
-                cx = rng.integers(0, W)
-                cy = rng.integers(0, H)
-                size = rng.integers(20, 80)
-                brightness = rng.integers(120, 200)
+                cx = random_gen.integers(0, W)
+                cy = random_gen.integers(0, H)
+                size = random_gen.integers(particle_size_min, particle_size_max)
+                brightness = random_gen.integers(particle_brightness_min, particle_brightness_max)
                 
                 # Create particle glow using pre-computed grids
                 dist = np.sqrt((x_coords - cx)**2 + (y_coords - cy)**2)
@@ -98,7 +106,9 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
                 glow = np.exp(-dist / size) * brightness
                 glow = glow.astype(np.uint8)
                 
-                # Add to all channels with slight color variation
+                # Add to all channels with slight color variation for depth
+                # Multipliers create subtle color shifts: R slightly reduced, B slightly enhanced
+                # This creates a cool-toned glow effect that complements most gradient bases
                 arr[:,:,0] = np.clip(arr[:,:,0] + glow * 0.9, 0, 255).astype(np.uint8)
                 arr[:,:,1] = np.clip(arr[:,:,1] + glow * 1.0, 0, 255).astype(np.uint8)
                 arr[:,:,2] = np.clip(arr[:,:,2] + glow * 1.1, 0, 255).astype(np.uint8)
@@ -108,13 +118,17 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
             y_coords = np.linspace(0, 4 * np.pi, H, dtype=np.float32).reshape(-1, 1)
             x_coords = np.linspace(0, 4 * np.pi, W, dtype=np.float32).reshape(1, -1)
             
-            # Multiple wave frequencies for complexity
-            wave1 = np.sin(y_coords + x_coords * 0.5)
-            wave2 = np.sin(x_coords * 0.7 + y_coords * 0.3)
-            wave3 = np.sin(y_coords * 1.3 - x_coords * 0.4)
+            # Multiple wave frequencies for complexity and hypnotic effect
+            # Wave parameters chosen for visual appeal:
+            # - Frequencies (0.5, 0.7, 0.3, 1.3, 0.4): Create interference patterns
+            # - Weights (0.4, 0.3, 0.3): Primary wave dominates, secondaries add detail
+            # - Multiple directions: y+x, x+y, y-x create flowing, organic motion
+            wave1 = np.sin(y_coords + x_coords * 0.5)  # Diagonal flow, primary wave
+            wave2 = np.sin(x_coords * 0.7 + y_coords * 0.3)  # Horizontal bias, detail
+            wave3 = np.sin(y_coords * 1.3 - x_coords * 0.4)  # Vertical bias, complexity
             
-            # Combine waves
-            blend = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.3 + 1) / 2  # Normalize to 0-1
+            # Combine waves with weighted average, then normalize to 0-1
+            blend = (wave1 * 0.4 + wave2 * 0.3 + wave3 * 0.3 + 1) / 2
             
             arr = np.zeros((H, W, 3), dtype=np.uint8)
             for i in range(3):
@@ -206,7 +220,8 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     # Enhanced zoompan with multiple motion patterns for organic feel
     # Creates a "breathing" effect with gentle rotation-like motion
     # Formula combines:
-    # - Sinusoidal zoom oscillation (1.0 to 1.35 range for more dynamic feel)
+    # - Sinusoidal zoom oscillation with style-specific ranges
+    #   (particles ≈ 1.0–1.4x, waves ≈ 0.97–1.33x, gradient/radial ≈ 1.01–1.35x)
     # - Circular pan motion with varying speed
     # - Subtle rotation effect via asymmetric x/y motion
     # The motion is proven to retain attention better in viral content analysis
@@ -214,13 +229,31 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     # Use different motion patterns based on style for variety
     if style == "particles":
         # Faster, more energetic motion for particle backgrounds
-        vf = f"zoompan=z='1.2+0.2*sin(on/{fps}/1.5)':x='iw/2-(iw/zoom/2)+sin(on/{fps}*1.2)*30':y='ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*30':d=1:s={W}x{H}:fps={fps},format=yuv420p"
+        zoom_formula = f"1.2+0.2*sin(on/{fps}/1.5)"
+        pan_x_formula = f"iw/2-(iw/zoom/2)+sin(on/{fps}*1.2)*30"
+        pan_y_formula = f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*30"
     elif style == "waves":
         # Slower, flowing motion for wave backgrounds
-        vf = f"zoompan=z='1.15+0.18*sin(on/{fps}/2.5)':x='iw/2-(iw/zoom/2)+sin(on/{fps}*0.6)*25':y='ih/2-(ih/zoom/2)+cos(on/{fps}*0.4)*25':d=1:s={W}x{H}:fps={fps},format=yuv420p"
+        zoom_formula = f"1.15+0.18*sin(on/{fps}/2.5)"
+        pan_x_formula = f"iw/2-(iw/zoom/2)+sin(on/{fps}*0.6)*25"
+        pan_y_formula = f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.4)*25"
     else:
         # Balanced motion for gradient/radial backgrounds
-        vf = f"zoompan=z='1.18+0.17*sin(on/{fps}/2)':x='iw/2-(iw/zoom/2)+sin(on/{fps}*0.8)*25+cos(on/{fps}*0.3)*10':y='ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*25+sin(on/{fps}*0.3)*10':d=1:s={W}x{H}:fps={fps},format=yuv420p"
+        zoom_formula = f"1.18+0.17*sin(on/{fps}/2)"
+        pan_x_formula = (
+            f"iw/2-(iw/zoom/2)+sin(on/{fps}*0.8)*25+cos(on/{fps}*0.3)*10"
+        )
+        pan_y_formula = (
+            f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*25+sin(on/{fps}*0.3)*10"
+        )
+
+    vf = (
+        "zoompan="
+        f"z='{zoom_formula}':"
+        f"x='{pan_x_formula}':"
+        f"y='{pan_y_formula}':"
+        f"d=1:s={W}x{H}:fps={fps},format=yuv420p"
+    )
     
     try:
         (

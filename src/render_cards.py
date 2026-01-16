@@ -19,11 +19,23 @@ from functools import lru_cache
 
 @dataclass
 class CardTheme:
-    card_w: int = 920
-    padding: int = 56
-    radius: int = 40
+    """Theme configuration for card rendering with glassmorphism design.
+    
+    Dimensions are optimized for vertical video (1080x1920):
+    - card_w: 920px fits comfortably with margins in 1080px width
+    - padding: 56px provides breathing room for content
+    - radius: 40px creates modern rounded corners without being excessive
+    
+    Colors chosen for:
+    - High contrast on colorful backgrounds (dark bg, white text)
+    - Premium glassmorphism aesthetic (semi-transparent with gradient borders)
+    - Mobile readability (sufficient contrast ratios)
+    """
+    card_w: int = 920  # Card width optimized for 1080px vertical video
+    padding: int = 56  # Internal padding for content breathing room
+    radius: int = 40   # Corner radius for modern aesthetic
     # Modern glassmorphism - semi-transparent dark with blur effect simulation
-    bg: Tuple[int,int,int,int] = (15, 15, 20, 245)
+    bg: Tuple[int,int,int,int] = (15, 15, 20, 245)  # ~96% opacity for depth
     # Gradient border with higher opacity for premium look
     border: Tuple[int,int,int,int] = (255, 255, 255, 60)
     border_gradient_start: Tuple[int,int,int,int] = (138, 180, 248, 180)  # Soft blue
@@ -36,7 +48,7 @@ class CardTheme:
     accent_purple: Tuple[int,int,int,int] = (180, 100, 255, 255)
     accent_gradient: Tuple[int,int,int,int] = (138, 180, 248, 255)
     # Shadow color for depth
-    shadow: Tuple[int,int,int,int] = (0, 0, 0, 80)
+    shadow: Tuple[int,int,int,int] = (0, 0, 0, 80)  # ~31% opacity
 
 @lru_cache(maxsize=32)
 def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
@@ -67,7 +79,7 @@ def _rounded_rectangle(draw: ImageDraw.ImageDraw, xy, radius, fill, outline=None
     # Pillow >= 9 supports rounded_rectangle
     draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
 
-def _draw_gradient_border(img: Image.Image, xy, radius: int, color1: Tuple[int,int,int,int], color2: Tuple[int,int,int,int], width: int=3):
+def _draw_gradient_border(img: Image.Image, xy: Tuple[int, int, int, int], radius: int, color1: Tuple[int,int,int,int], color2: Tuple[int,int,int,int], width: int=3):
     """Draw a gradient border on an image for premium look."""
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
@@ -163,7 +175,7 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     shadow_img = Image.new("RGBA", (W, H), (0,0,0,0))
     shadow_draw = ImageDraw.Draw(shadow_img)
     shadow_offset = 6
-    _rounded_rectangle(shadow_draw, (shadow_offset, shadow_offset, W+shadow_offset, H+shadow_offset), 
+    _rounded_rectangle(shadow_draw, (shadow_offset, shadow_offset, W - 1, H - 1), 
                       theme.radius, fill=theme.shadow)
     img.paste(shadow_img, (0, 0), shadow_img)
     
@@ -175,18 +187,20 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
                          theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # Enhanced gradient accent bar with glow (optimized)
+    # Enhanced gradient accent bar with glow (optimized and bounds-safe)
     accent_x = theme.padding - 4
     accent_w = 12
     accent_y1 = theme.padding
     accent_y2 = H - theme.padding
     
     # Draw glow behind accent bar - reduced iterations for performance
-    for i in range(4, 0, -1):
-        alpha = int(50 * (i / 4))
+    # Uses 4 layers with exponentially increasing spread
+    glow_layers = 4
+    for i in range(glow_layers, 0, -1):
+        alpha = int(50 * (i / glow_layers))
         glow_color = (*theme.accent_blue[:3], alpha)
         draw.rounded_rectangle(
-            (accent_x - i*2, accent_y1, accent_x + accent_w + i*2, accent_y2),
+            (max(0, accent_x - i*2), accent_y1, accent_x + accent_w + i*2, accent_y2),
             radius=8, fill=glow_color
         )
     
@@ -247,7 +261,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     shadow_img = Image.new("RGBA", (W, H), (0,0,0,0))
     shadow_draw = ImageDraw.Draw(shadow_img)
     shadow_offset = 6
-    _rounded_rectangle(shadow_draw, (shadow_offset, shadow_offset, W+shadow_offset, H+shadow_offset), 
+    _rounded_rectangle(shadow_draw, (shadow_offset, shadow_offset, W - 1, H - 1), 
                       theme.radius, fill=theme.shadow)
     img.paste(shadow_img, (0, 0), shadow_img)
     
@@ -273,7 +287,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     badge_w = (bbox[2] - bbox[0]) + 24
     badge_h = (bbox[3] - bbox[1]) + 16
     badge_x = W - theme.padding - badge_w
-    badge_y = y - 4
+    badge_y = max(0, y - 4)  # Prevent negative coordinates
     
     # Draw gradient badge background - reduced layers for performance
     badge_color = (*theme.accent_purple[:3], 140)
@@ -288,15 +302,22 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     text_y = badge_y + 8
     draw.text((text_x, text_y), meta, font=font_meta, fill=theme.text)
 
-    # Enhanced divider with gradient
+    # Enhanced divider with gradient (optimized for performance)
     y += 64
     divider_y = y
-    # Draw gradient divider
-    for i in range(W - 2 * theme.padding):
-        t = i / (W - 2 * theme.padding)
+    # Draw gradient divider with fewer, thicker lines for better performance
+    divider_width = max(1, W - 2 * theme.padding)  # Prevent division by zero
+    # Use step size to reduce iterations from 808 to ~200
+    step = 4
+    steps = max(2, divider_width // step)
+    for i in range(steps):
+        # Normalize position along the gradient [0, 1]
+        t = i / (steps - 1) if steps > 1 else 0
         alpha = int(60 * (1 - abs(t - 0.5) * 2))  # Fade at edges
         color = (*theme.border_gradient_start[:3], alpha)
-        draw.line((theme.padding + i, divider_y, theme.padding + i, divider_y + 2), fill=color, width=1)
+        # Map step index back to an x-coordinate within the gradient span
+        x = theme.padding + int(i * divider_width / (steps - 1))
+        draw.line((x, divider_y, x, divider_y + 2), fill=color, width=step)
     
     y += 28
 

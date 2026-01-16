@@ -241,7 +241,7 @@ Five state-of-the-art background styles are available, configurable in `config.j
 1. **Particles (Default - Most Engaging)** - Dynamic particle field with glowing effects
    - Hundreds of animated light particles creating depth and motion
    - Excellent for maximum viewer retention and engagement
-   - Perfect for story-telling and narrative content
+   - Perfect for high-energy, viral-optimized content
 
 2. **Waves (NEW - Hypnotic)** - Flowing wave patterns with multiple frequencies
    - Mesmerizing wave animations that create a calming yet engaging effect
@@ -249,9 +249,9 @@ Five state-of-the-art background styles are available, configurable in `config.j
    - Works well with educational or explanatory content
 
 3. **Gradient (Enhanced)** - Smooth diagonal gradients with vibrant colors
-   - Purple-pink (trending on TikTok)
+   - Sunset Orange-Pink (high energy)
    - Blue-cyan (clean, modern)
-   - Orange-red (high energy)
+   - Purple-pink (trending on TikTok)
    - Teal-green (calming but vibrant)
    - Violet-blue (mysterious, engaging)
 

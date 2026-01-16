@@ -36,7 +36,7 @@ The following improvements have been implemented and verified:
 ### Key Visual Elements
 
 1. **Glassmorphism Background**
-   - Semi-transparent dark (RGB: 15, 15, 20, 96% opacity)
+   - Semi-transparent dark (RGBA: 15, 15, 20, alpha 245 ≈ 96% opacity)
    - Creates depth and modern aesthetic
    - Stands out against colorful backgrounds
 
@@ -47,7 +47,7 @@ The following improvements have been implemented and verified:
 
 3. **Shadows**
    - 6px offset for elevation
-   - Subtle black with 31% opacity
+   - Subtle black with ~31% opacity (alpha: 80)
    - Creates floating card effect
 
 4. **Typography**
