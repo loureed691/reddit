@@ -55,24 +55,27 @@ class RedditVideoFactory:
         comments: List[RedditComment],
         target_duration: float,
         tts_opts: TTSOptions,
-        mp3_dir: str
-    ) -> Tuple[List[RedditComment], List[str]]:
+        mp3_dir: str,
+        capture_word_timings: bool = False
+    ) -> Tuple[List[RedditComment], List[str], List[List]]:
         """Select comments that fit within the target duration.
         
         Generates TTS for comments incrementally until the cumulative audio
         duration would exceed ``target_duration``. Returns a tuple
-        ``(selected_comments, mp3_paths)`` where:
+        ``(selected_comments, mp3_paths, word_timings_list)`` where:
         
         - ``selected_comments`` is a list of the comment objects that were
           successfully processed and kept.
         - ``mp3_paths`` is a list of paths to the corresponding generated MP3
           files, in the same order and of the same length as
           ``selected_comments``.
+        - ``word_timings_list`` is a list of word timing lists (one per comment),
+          only populated if capture_word_timings is True.
         
         Edge cases:
         
         - If ``comments`` is empty, or if TTS generation fails for every
-          comment, both returned lists will be empty.
+          comment, all returned lists will be empty.
         - If adding a comment would exceed ``target_duration``, that comment is
           normally skipped and its MP3 file (if just generated) is removed.
         - However, if the very first successfully generated comment would
@@ -92,6 +95,7 @@ class RedditVideoFactory:
         
         selected = []
         mp3_paths = []
+        word_timings_list = []
         cumulative_duration = 0.0
         
         for i, comment in enumerate(comments):
@@ -99,7 +103,12 @@ class RedditVideoFactory:
             # Note: Failed TTS generations will create gaps in numbering
             mp3_path = os.path.join(mp3_dir, f"{i}.mp3")
             try:
-                tts_to_mp3(comment.body, mp3_path, tts_opts)
+                if capture_word_timings:
+                    word_timings = tts_to_mp3_with_word_timings(comment.body, mp3_path, tts_opts)
+                else:
+                    tts_to_mp3(comment.body, mp3_path, tts_opts)
+                    word_timings = []
+                
                 duration = probe_duration(mp3_path)
                 
                 # Check if adding this comment would exceed target
@@ -108,6 +117,7 @@ class RedditVideoFactory:
                     if not selected:
                         selected.append(comment)
                         mp3_paths.append(mp3_path)
+                        word_timings_list.append(word_timings)
                     else:
                         # Remove the file we just created since we won't use it
                         try:
@@ -118,13 +128,14 @@ class RedditVideoFactory:
                 
                 selected.append(comment)
                 mp3_paths.append(mp3_path)
+                word_timings_list.append(word_timings)
                 cumulative_duration += duration
                 
             except Exception as e:
                 logger.warning(f"Failed to generate TTS for comment {i}: {e}")
                 continue
         
-        return selected, mp3_paths
+        return selected, mp3_paths, word_timings_list
 
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
         """Generate a Reddit video from a thread URL or ID.
@@ -229,10 +240,15 @@ class RedditVideoFactory:
             )
             selected_comments = []
             comment_mp3s = []
+            comment_word_timings_list = []
             all_comment_cards_info = []
         else:
-            selected_comments, comment_mp3s = self._select_comments_for_duration(
-                thread.comments, remaining_duration, tts_opts, mp3_dir
+            selected_comments, comment_mp3s, comment_word_timings_list = self._select_comments_for_duration(
+                thread.comments, 
+                remaining_duration, 
+                tts_opts, 
+                mp3_dir,
+                capture_word_timings=self.cfg.settings.word_by_word_animation
             )
             
             logger.info(f"Selected {len(selected_comments)} comments for target duration")
@@ -243,9 +259,8 @@ class RedditVideoFactory:
             if self.cfg.settings.word_by_word_animation:
                 from ..render_progressive import render_progressive_comment_cards
                 for i, c in enumerate(selected_comments):
-                    mp3_path = comment_mp3s[i]
-                    # Generate TTS with word timings
-                    comment_word_timings = tts_to_mp3_with_word_timings(c.body, mp3_path, tts_opts)
+                    # Use already-captured word timings
+                    comment_word_timings = comment_word_timings_list[i]
                     # Generate progressive comment cards
                     comment_cards = render_progressive_comment_cards(
                         c.author,
