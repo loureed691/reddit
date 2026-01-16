@@ -87,7 +87,7 @@ async def _edge_tts_with_word_timings(text: str, mp3_path: str, opts: TTSOptions
                 duration = chunk.get("duration", 0) / 10_000_000.0  # Convert from 100ns units to seconds
                 
                 if word_text:
-                    if duration >= 0:
+                    if duration > 0:
                         word_timings.append(WordTiming(
                             text=word_text,
                             offset=offset,
@@ -95,7 +95,7 @@ async def _edge_tts_with_word_timings(text: str, mp3_path: str, opts: TTSOptions
                         ))
                     else:
                         logger.debug(
-                            f"Skipping word '{word_text}' with negative duration ({duration}s) at offset {offset}s"
+                            f"Skipping word '{word_text}' with non-positive duration ({duration}s) at offset {offset}s"
                         )
         
         # Write audio data to file
