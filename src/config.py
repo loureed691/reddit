@@ -115,6 +115,7 @@ class SettingsConfig:
     opacity: float = 0.92
     max_comments: int = 12
     language: str = "en"
+    word_by_word_animation: bool = True  # Enable word-by-word text animation
     voice: VoiceConfig = field(default_factory=VoiceConfig)
     background: BackgroundConfig = field(default_factory=BackgroundConfig)
     video_duration: VideoDurationConfig = field(default_factory=VideoDurationConfig)
@@ -127,6 +128,7 @@ class SettingsConfig:
             opacity=_to_float(d.get("opacity", 0.92), 0.92),
             max_comments=_to_int(d.get("max_comments", 12), 12),
             language=str(d.get("language","en")),
+            word_by_word_animation=_to_bool(d.get("word_by_word_animation", True), True),
             voice=VoiceConfig.from_dict(d.get("voice", {}) or {}),
             background=BackgroundConfig.from_dict(d.get("background", {}) or {}),
             video_duration=VideoDurationConfig.from_dict(d.get("video_duration", {}) or {}),
