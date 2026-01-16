@@ -217,11 +217,35 @@ class LoggingConfig:
         )
 
 @dataclass
+class PerformanceConfig:
+    """Configuration for performance optimizations."""
+    enable_parallel_tts: bool = True  # Enable parallel TTS generation
+    parallel_tts_workers: int = 8  # Max parallel TTS workers
+    enable_background_cache: bool = True  # Cache background videos
+    enable_gpu_encoding: bool = True  # Auto-detect and use GPU encoding
+    gpu_encoder: Optional[str] = None  # Force specific GPU encoder (h264_nvenc, h264_qsv, etc.)
+    enable_performance_metrics: bool = True  # Track and log performance metrics
+    parallel_card_rendering: bool = True  # Parallel rendering of progressive cards
+    
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "PerformanceConfig":
+        return PerformanceConfig(
+            enable_parallel_tts=_to_bool(d.get("enable_parallel_tts", True), True),
+            parallel_tts_workers=_to_int(d.get("parallel_tts_workers", 8), 8),
+            enable_background_cache=_to_bool(d.get("enable_background_cache", True), True),
+            enable_gpu_encoding=_to_bool(d.get("enable_gpu_encoding", True), True),
+            gpu_encoder=d.get("gpu_encoder", None),
+            enable_performance_metrics=_to_bool(d.get("enable_performance_metrics", True), True),
+            parallel_card_rendering=_to_bool(d.get("parallel_card_rendering", True), True),
+        )
+
+@dataclass
 class FactoryConfig:
     settings: SettingsConfig = field(default_factory=SettingsConfig)
     reddit: RedditConfig = field(default_factory=RedditConfig)
     automation: AutomationConfig = field(default_factory=AutomationConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    performance: PerformanceConfig = field(default_factory=PerformanceConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "FactoryConfig":
@@ -230,4 +254,5 @@ class FactoryConfig:
             reddit=RedditConfig.from_dict(d.get("reddit", {}) or {}),
             automation=AutomationConfig.from_dict(d.get("automation", {}) or {}),
             logging=LoggingConfig.from_dict(d.get("logging", {}) or {}),
+            performance=PerformanceConfig.from_dict(d.get("performance", {}) or {}),
         )

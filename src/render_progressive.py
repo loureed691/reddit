@@ -2,9 +2,12 @@
 
 This module provides functionality to render cards with text appearing word by word,
 synchronized with TTS audio for enhanced viewer engagement.
+
+OPTIMIZED: Uses batch rendering and optimized PNG saving for better performance.
 """
 from __future__ import annotations
 from typing import List, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
 from .render_cards import render_title_card, render_comment_card
 from .tts import WordTiming
@@ -64,6 +67,8 @@ def render_progressive_title_cards(
 ) -> List[Tuple[str, float]]:
     """Render multiple title cards with progressive text reveal.
     
+    OPTIMIZED: Uses parallel rendering for better performance with many frames.
+    
     Args:
         title: The title text
         subtitle: The subtitle text (e.g., subreddit)
@@ -88,11 +93,31 @@ def render_progressive_title_cards(
     
     result: List[Tuple[str, float]] = []
     
-    for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
+    # OPTIMIZATION: Render and save cards in parallel for better performance
+    def render_and_save_card(i: int, partial_text: str, duration: float) -> Tuple[str, float]:
+        """Render a single card and save it."""
         img = render_title_card(partial_text, subtitle)
         path = os.path.join(png_dir, f"{base_name}_{i:03d}.png")
-        img.save(path, optimize=False)
-        result.append((path, duration))
+        # Disable PNG optimization for speed - we'll delete these files anyway
+        img.save(path, optimize=False, compress_level=1)
+        return (path, duration)
+    
+    # Use ThreadPoolExecutor for parallel I/O operations
+    # Limit workers to avoid excessive memory usage
+    max_workers = min(4, len(progressive_frames))
+    
+    if len(progressive_frames) > 10:
+        # Only use parallelization if we have many frames
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(render_and_save_card, i, partial_text, duration)
+                for i, (partial_text, _start_time, duration) in enumerate(progressive_frames)
+            ]
+            result = [f.result() for f in futures]
+    else:
+        # For small numbers of frames, sequential is fine
+        for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
+            result.append(render_and_save_card(i, partial_text, duration))
         
     logger.debug(f"Rendered {len(result)} progressive title cards")
     return result
@@ -108,6 +133,8 @@ def render_progressive_comment_cards(
     audio_duration: float = 0.0
 ) -> List[Tuple[str, float]]:
     """Render multiple comment cards with progressive text reveal.
+    
+    OPTIMIZED: Uses parallel rendering for better performance with many frames.
     
     Args:
         author: Comment author username
@@ -134,11 +161,31 @@ def render_progressive_comment_cards(
     
     result: List[Tuple[str, float]] = []
     
-    for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
+    # OPTIMIZATION: Render and save cards in parallel for better performance
+    def render_and_save_card(i: int, partial_text: str, duration: float) -> Tuple[str, float]:
+        """Render a single card and save it."""
         img = render_comment_card(author, partial_text, score)
         path = os.path.join(png_dir, f"{base_name}_{i:03d}.png")
-        img.save(path, optimize=False)
-        result.append((path, duration))
+        # Disable PNG optimization for speed - we'll delete these files anyway
+        img.save(path, optimize=False, compress_level=1)
+        return (path, duration)
+    
+    # Use ThreadPoolExecutor for parallel I/O operations
+    # Limit workers to avoid excessive memory usage
+    max_workers = min(4, len(progressive_frames))
+    
+    if len(progressive_frames) > 10:
+        # Only use parallelization if we have many frames
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(render_and_save_card, i, partial_text, duration)
+                for i, (partial_text, _start_time, duration) in enumerate(progressive_frames)
+            ]
+            result = [f.result() for f in futures]
+    else:
+        # For small numbers of frames, sequential is fine
+        for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
+            result.append(render_and_save_card(i, partial_text, duration))
         
     logger.debug(f"Rendered {len(result)} progressive comment cards for {base_name}")
     return result

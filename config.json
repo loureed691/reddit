@@ -49,5 +49,14 @@
     "backup_count": 5,
     "enable_file_logging": true,
     "enable_console_logging": true
+  },
+  "performance": {
+    "enable_parallel_tts": true,
+    "parallel_tts_workers": 8,
+    "enable_background_cache": true,
+    "enable_gpu_encoding": true,
+    "gpu_encoder": null,
+    "enable_performance_metrics": true,
+    "parallel_card_rendering": true
   }
 }

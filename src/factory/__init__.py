@@ -14,6 +14,7 @@ Optimizations:
 - Word-by-word text animation synchronized with TTS audio
 """
 from __future__ import annotations
+import asyncio
 import json
 import os
 from typing import Any, List, Optional, Tuple
@@ -25,8 +26,13 @@ from ..tts import tts_to_mp3, tts_to_mp3_with_word_timings, TTSOptions
 from ..background import generate_background_mp4
 from ..builder import concat_audio, render_video, probe_duration
 from ..logger import get_logger
+from ..parallel_tts import generate_tts_async_batch
+from ..cache_manager import BackgroundCache
 
 logger = get_logger(__name__)
+
+# Global background cache instance
+_bg_cache = BackgroundCache()
 
 def _ensure_dir(path: str) -> None:
     os.makedirs(path, exist_ok=True)
@@ -60,7 +66,9 @@ class RedditVideoFactory:
     ) -> Tuple[List[RedditComment], List[str], List[List], List[float]]:
         """Select comments that fit within the target duration.
         
-        Generates TTS for comments incrementally until the cumulative audio
+        OPTIMIZED: Uses parallel TTS generation in batches to significantly speed up processing.
+        
+        Generates TTS for comments in batches until the cumulative audio
         duration would exceed ``target_duration``. Returns a tuple
         ``(selected_comments, mp3_paths, word_timings_list, durations)`` where:
         
@@ -94,32 +102,52 @@ class RedditVideoFactory:
         if target_duration <= 0:
             logger.warning("target_duration is zero or negative")
         
+        if not comments:
+            return [], [], [], []
+        
         selected = []
         mp3_paths = []
         word_timings_list = []
         durations = []
         cumulative_duration = 0.0
         
-        for i, comment in enumerate(comments):
-            # Generate TTS for this comment with original index to avoid duplicates
-            # Note: Failed TTS generations will create gaps in numbering
-            mp3_path = os.path.join(mp3_dir, f"{i}.mp3")
-            try:
-                if capture_word_timings:
-                    word_timings = tts_to_mp3_with_word_timings(comment.body, mp3_path, tts_opts)
-                    # Validate that word timings were actually captured. Some TTS backends may
-                    # fall back to plain audio generation and return an empty list here.
-                    if not word_timings:
-                        logger.warning(
-                            "Word timings were requested but not captured for comment %d; "
-                            "falling back to static card animation for this segment.",
-                            i,
-                        )
-                else:
-                    tts_to_mp3(comment.body, mp3_path, tts_opts)
-                    word_timings = []
+        # OPTIMIZATION: Generate TTS for multiple comments in parallel batches
+        # Process comments in batches of 8 to balance parallelism with target duration tracking
+        batch_size = 8
+        
+        for batch_start in range(0, len(comments), batch_size):
+            batch_end = min(batch_start + batch_size, len(comments))
+            batch_comments = comments[batch_start:batch_end]
+            
+            # Prepare batch data
+            batch_texts = [c.body for c in batch_comments]
+            batch_paths = [os.path.join(mp3_dir, f"{batch_start + i}.mp3") 
+                          for i in range(len(batch_comments))]
+            
+            # Generate TTS in parallel for entire batch
+            logger.debug(f"Generating TTS for batch of {len(batch_comments)} comments in parallel...")
+            batch_results = asyncio.run(generate_tts_async_batch(
+                batch_texts, 
+                batch_paths, 
+                tts_opts, 
+                capture_word_timings=capture_word_timings
+            ))
+            
+            # Process results and check against target duration
+            for i, (comment, mp3_path, result) in enumerate(zip(batch_comments, batch_paths, batch_results)):
+                success, word_timings, duration, error = result
                 
-                duration = probe_duration(mp3_path)
+                if not success:
+                    logger.warning(f"Failed to generate TTS for comment {batch_start + i}: {error}")
+                    continue
+                
+                # Validate word timings
+                if capture_word_timings and not word_timings:
+                    logger.warning(
+                        "Word timings were requested but not captured for comment %d; "
+                        "falling back to static card animation for this segment.",
+                        batch_start + i,
+                    )
                 
                 # Check if adding this comment would exceed target
                 if cumulative_duration + duration > target_duration:
@@ -127,7 +155,7 @@ class RedditVideoFactory:
                     if not selected:
                         selected.append(comment)
                         mp3_paths.append(mp3_path)
-                        word_timings_list.append(word_timings)
+                        word_timings_list.append(word_timings or [])
                         durations.append(duration)
                     else:
                         # Remove the file we just created since we won't use it
@@ -135,18 +163,16 @@ class RedditVideoFactory:
                             os.remove(mp3_path)
                         except Exception:
                             pass
-                    break
+                    # Stop processing - we've reached target duration
+                    return selected, mp3_paths, word_timings_list, durations
                 
                 selected.append(comment)
                 mp3_paths.append(mp3_path)
-                word_timings_list.append(word_timings)
+                word_timings_list.append(word_timings or [])
                 durations.append(duration)
                 cumulative_duration += duration
-                
-            except Exception as e:
-                logger.warning(f"Failed to generate TTS for comment {i}: {e}")
-                continue
         
+        logger.info(f"Selected {len(selected)} comments using parallel TTS generation")
         return selected, mp3_paths, word_timings_list, durations
 
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
@@ -312,14 +338,36 @@ class RedditVideoFactory:
         else:
             if bg_cfg.auto_generate_background:
                 seconds = float(bg_cfg.background_seconds or 600)
-                logger.debug(f"Generating background video ({seconds}s)")
-                generate_background_mp4(
-                    bg_mp4,
-                    self.cfg.settings.resolution_w,
-                    self.cfg.settings.resolution_h,
+                
+                # OPTIMIZATION: Check cache for background video
+                cached_bg = _bg_cache.get(
                     seconds=seconds,
                     style=bg_cfg.style,
+                    width=self.cfg.settings.resolution_w,
+                    height=self.cfg.settings.resolution_h
                 )
+                
+                if cached_bg:
+                    import shutil
+                    shutil.copyfile(cached_bg, bg_mp4)
+                    logger.debug(f"Using cached background ({seconds}s, {bg_cfg.style})")
+                else:
+                    logger.debug(f"Generating background video ({seconds}s, {bg_cfg.style})")
+                    generate_background_mp4(
+                        bg_mp4,
+                        self.cfg.settings.resolution_w,
+                        self.cfg.settings.resolution_h,
+                        seconds=seconds,
+                        style=bg_cfg.style,
+                    )
+                    # Cache the generated background
+                    _bg_cache.put(
+                        bg_mp4,
+                        seconds=seconds,
+                        style=bg_cfg.style,
+                        width=self.cfg.settings.resolution_w,
+                        height=self.cfg.settings.resolution_h
+                    )
             else:
                 raise FileNotFoundError("No background provided and auto_generate_background=false")
 
