@@ -5,7 +5,6 @@ synchronized with TTS audio for enhanced viewer engagement.
 """
 from __future__ import annotations
 from typing import List, Tuple
-from PIL import Image
 
 from .render_cards import render_title_card, render_comment_card
 from .tts import WordTiming
@@ -14,20 +13,10 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 
-def split_text_into_words(text: str) -> List[str]:
-    """Split text into words while preserving original formatting.
-    
-    Returns a list of words from the text. This is used as a fallback
-    when word timings are not available from TTS.
-    """
-    return text.split()
-
-
-def create_progressive_text(full_text: str, word_timings: List[WordTiming]) -> List[Tuple[str, float, float]]:
+def create_progressive_text(word_timings: List[WordTiming]) -> List[Tuple[str, float, float]]:
     """Create progressive text reveals from word timings.
     
     Args:
-        full_text: The complete text to be revealed
         word_timings: List of WordTiming objects from TTS
     
     Returns:
@@ -37,8 +26,8 @@ def create_progressive_text(full_text: str, word_timings: List[WordTiming]) -> L
         - duration: How long to show this frame (seconds)
     """
     if not word_timings:
-        # Fallback: show full text immediately
-        return [(full_text, 0.0, 0.0)]
+        # Return empty list to signal no progressive frames
+        return []
     
     progressive_frames: List[Tuple[str, float, float]] = []
     
@@ -70,7 +59,8 @@ def render_progressive_title_cards(
     subtitle: str,
     word_timings: List[WordTiming],
     png_dir: str,
-    base_name: str = "title"
+    base_name: str = "title",
+    audio_duration: float = 0.0
 ) -> List[Tuple[str, float]]:
     """Render multiple title cards with progressive text reveal.
     
@@ -80,20 +70,21 @@ def render_progressive_title_cards(
         word_timings: Word timing information from TTS
         png_dir: Directory to save PNG files
         base_name: Base name for the PNG files
+        audio_duration: Duration of the audio (used for fallback when no word timings)
     
     Returns:
         List of tuples (image_path, duration) for each progressive frame
     """
     import os
     
-    progressive_frames = create_progressive_text(title, word_timings)
+    progressive_frames = create_progressive_text(word_timings)
     
-    if not progressive_frames or len(progressive_frames) <= 1:
-        # No word timings or only one frame: render single card
+    if not progressive_frames:
+        # No word timings: render single card with full audio duration
         img = render_title_card(title, subtitle)
         path = os.path.join(png_dir, f"{base_name}.png")
         img.save(path, optimize=False)
-        return [(path, 0.0)]
+        return [(path, audio_duration)]
     
     result: List[Tuple[str, float]] = []
     
@@ -113,7 +104,8 @@ def render_progressive_comment_cards(
     score: int,
     word_timings: List[WordTiming],
     png_dir: str,
-    base_name: str = "comment_0"
+    base_name: str = "comment_0",
+    audio_duration: float = 0.0
 ) -> List[Tuple[str, float]]:
     """Render multiple comment cards with progressive text reveal.
     
@@ -124,20 +116,21 @@ def render_progressive_comment_cards(
         word_timings: Word timing information from TTS
         png_dir: Directory to save PNG files
         base_name: Base name for the PNG files
+        audio_duration: Duration of the audio (used for fallback when no word timings)
     
     Returns:
         List of tuples (image_path, duration) for each progressive frame
     """
     import os
     
-    progressive_frames = create_progressive_text(body, word_timings)
+    progressive_frames = create_progressive_text(word_timings)
     
-    if not progressive_frames or len(progressive_frames) <= 1:
-        # No word timings or only one frame: render single card
+    if not progressive_frames:
+        # No word timings: render single card with full audio duration
         img = render_comment_card(author, body, score)
         path = os.path.join(png_dir, f"{base_name}.png")
         img.save(path, optimize=False)
-        return [(path, 0.0)]
+        return [(path, audio_duration)]
     
     result: List[Tuple[str, float]] = []
     

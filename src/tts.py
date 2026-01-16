@@ -17,7 +17,7 @@ import os
 import subprocess
 import tempfile
 from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from typing import List
 
 import ffmpeg
 
@@ -82,12 +82,17 @@ async def _edge_tts_with_word_timings(text: str, mp3_path: str, opts: TTSOptions
                 offset = chunk.get("offset", 0) / 10_000_000.0  # Convert from 100ns units to seconds
                 duration = chunk.get("duration", 0) / 10_000_000.0  # Convert from 100ns units to seconds
                 
-                if word_text and duration > 0:
-                    word_timings.append(WordTiming(
-                        text=word_text,
-                        offset=offset,
-                        duration=duration
-                    ))
+                if word_text:
+                    if duration >= 0:
+                        word_timings.append(WordTiming(
+                            text=word_text,
+                            offset=offset,
+                            duration=duration
+                        ))
+                    else:
+                        logger.debug(
+                            f"Skipping word '{word_text}' with negative duration ({duration}s) at offset {offset}s"
+                        )
         
         # Write audio data to file
         if audio_chunks:
@@ -139,8 +144,8 @@ def tts_to_mp3_with_word_timings(text: str, mp3_path: str, opts: TTSOptions) -> 
             _ffmpeg_wav_to_mp3(tmp_wav, mp3_path)
             try:
                 os.remove(tmp_wav)
-            except Exception:
-                pass
+            except Exception as cleanup_error:
+                logger.debug(f"Failed to remove temporary WAV file {tmp_wav}: {cleanup_error}")
             logger.debug(f"TTS generated successfully with pyttsx3 (no word timings available)")
             return []  # pyttsx3 doesn't provide word timings
         except Exception as e:
@@ -187,8 +192,8 @@ def tts_to_mp3(text: str, mp3_path: str, opts: TTSOptions) -> None:
             _ffmpeg_wav_to_mp3(tmp_wav, mp3_path)
             try:
                 os.remove(tmp_wav)
-            except Exception:
-                pass
+            except Exception as cleanup_error:
+                logger.debug(f"Failed to remove temporary WAV file {tmp_wav}: {cleanup_error}")
             logger.debug(f"TTS generated successfully with pyttsx3: {mp3_path}")
             return
         except Exception as e:

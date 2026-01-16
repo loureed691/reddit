@@ -57,12 +57,12 @@ class RedditVideoFactory:
         tts_opts: TTSOptions,
         mp3_dir: str,
         capture_word_timings: bool = False
-    ) -> Tuple[List[RedditComment], List[str], List[List]]:
+    ) -> Tuple[List[RedditComment], List[str], List[List], List[float]]:
         """Select comments that fit within the target duration.
         
         Generates TTS for comments incrementally until the cumulative audio
         duration would exceed ``target_duration``. Returns a tuple
-        ``(selected_comments, mp3_paths, word_timings_list)`` where:
+        ``(selected_comments, mp3_paths, word_timings_list, durations)`` where:
         
         - ``selected_comments`` is a list of the comment objects that were
           successfully processed and kept.
@@ -71,6 +71,7 @@ class RedditVideoFactory:
           ``selected_comments``.
         - ``word_timings_list`` is a list of word timing lists (one per comment),
           only populated if capture_word_timings is True.
+        - ``durations`` is a list of audio durations for each comment in seconds.
         
         Edge cases:
         
@@ -96,6 +97,7 @@ class RedditVideoFactory:
         selected = []
         mp3_paths = []
         word_timings_list = []
+        durations = []
         cumulative_duration = 0.0
         
         for i, comment in enumerate(comments):
@@ -105,6 +107,14 @@ class RedditVideoFactory:
             try:
                 if capture_word_timings:
                     word_timings = tts_to_mp3_with_word_timings(comment.body, mp3_path, tts_opts)
+                    # Validate that word timings were actually captured. Some TTS backends may
+                    # fall back to plain audio generation and return an empty list here.
+                    if not word_timings:
+                        logger.warning(
+                            "Word timings were requested but not captured for comment %d; "
+                            "falling back to static card animation for this segment.",
+                            i,
+                        )
                 else:
                     tts_to_mp3(comment.body, mp3_path, tts_opts)
                     word_timings = []
@@ -118,6 +128,7 @@ class RedditVideoFactory:
                         selected.append(comment)
                         mp3_paths.append(mp3_path)
                         word_timings_list.append(word_timings)
+                        durations.append(duration)
                     else:
                         # Remove the file we just created since we won't use it
                         try:
@@ -129,13 +140,14 @@ class RedditVideoFactory:
                 selected.append(comment)
                 mp3_paths.append(mp3_path)
                 word_timings_list.append(word_timings)
+                durations.append(duration)
                 cumulative_duration += duration
                 
             except Exception as e:
                 logger.warning(f"Failed to generate TTS for comment {i}: {e}")
                 continue
         
-        return selected, mp3_paths, word_timings_list
+        return selected, mp3_paths, word_timings_list, durations
 
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
         """Generate a Reddit video from a thread URL or ID.
@@ -211,13 +223,18 @@ class RedditVideoFactory:
             # Use word timing capture
             from ..render_progressive import render_progressive_title_cards
             title_word_timings = tts_to_mp3_with_word_timings(thread.title, title_mp3, tts_opts)
+            
+            # Probe title duration for use in progressive rendering and downstream timing
+            title_duration = probe_duration(title_mp3)
+            
             # Generate progressive title cards
             title_cards_info = render_progressive_title_cards(
                 thread.title,
                 f"r/{thread.subreddit}",
                 title_word_timings,
                 png_dir,
-                "title"
+                "title",
+                title_duration
             )
         else:
             # Traditional single card rendering
@@ -225,14 +242,10 @@ class RedditVideoFactory:
             title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
             title_png = f"{png_dir}/title.png"
             title_img.save(title_png, optimize=keep_temp)
-            title_cards_info = [(title_png, 0.0)]  # Duration will be set below
-        
-        # Probe title duration once for both modes
-        title_duration = probe_duration(title_mp3)
-        
-        # Update duration in title_cards_info if not using word-by-word (single card case)
-        if not self.cfg.settings.word_by_word_animation:
-            title_cards_info = [(title_cards_info[0][0], title_duration)]
+            
+            # Probe title duration and set it directly on the single title card
+            title_duration = probe_duration(title_mp3)
+            title_cards_info = [(title_png, title_duration)]
         
         # Estimate how much time we have for comments
         remaining_duration = max(0, target_duration - title_duration)
@@ -245,10 +258,10 @@ class RedditVideoFactory:
             )
             selected_comments = []
             comment_mp3s = []
-            comment_word_timings_list = []
+            comment_durations = []
             all_comment_cards_info = []
         else:
-            selected_comments, comment_mp3s, comment_word_timings_list = self._select_comments_for_duration(
+            selected_comments, comment_mp3s, comment_word_timings_list, comment_durations = self._select_comments_for_duration(
                 thread.comments, 
                 remaining_duration, 
                 tts_opts, 
@@ -264,8 +277,9 @@ class RedditVideoFactory:
             if self.cfg.settings.word_by_word_animation:
                 from ..render_progressive import render_progressive_comment_cards
                 for i, c in enumerate(selected_comments):
-                    # Use already-captured word timings
+                    # Use already-captured word timings and duration
                     comment_word_timings = comment_word_timings_list[i]
+                    duration = comment_durations[i]
                     # Generate progressive comment cards
                     comment_cards = render_progressive_comment_cards(
                         c.author,
@@ -273,16 +287,18 @@ class RedditVideoFactory:
                         c.score,
                         comment_word_timings,
                         png_dir,
-                        f"comment_{i}"
+                        f"comment_{i}",
+                        duration
                     )
                     all_comment_cards_info.append(comment_cards)
             else:
-                # Traditional single card per comment
+                # Traditional single card per comment - use cached durations
                 for i, c in enumerate(selected_comments):
                     img = render_comment_card(c.author, c.body, c.score)
                     p = os.path.join(png_dir, f"comment_{i}.png")
                     img.save(p, optimize=keep_temp)
-                    duration = probe_duration(comment_mp3s[i])
+                    # Use cached duration from _select_comments_for_duration
+                    duration = comment_durations[i]
                     all_comment_cards_info.append([(p, duration)])
 
         # 3) Background
