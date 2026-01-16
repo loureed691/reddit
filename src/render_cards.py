@@ -153,7 +153,19 @@ def _add_viral_emoji(title: str) -> str:
     for pattern, emoji in emoji_patterns:
         if re.search(pattern, title_lower):
             # Add emoji at the start if title doesn't already have emojis
-            if not any(char for char in title if ord(char) > 0x1F300):
+            # Check for common emoji Unicode ranges:
+            # - Main emoji range: 0x1F300 - 0x1F9FF (covers most modern emojis)
+            # - Emoticons: 0x1F600 - 0x1F64F
+            # - Symbols: 0x2600 - 0x26FF (includes ❤️)
+            # - Transport: 0x1F680 - 0x1F6FF
+            # - Misc Symbols: 0x2700 - 0x27BF
+            has_emoji = any(
+                0x1F300 <= ord(char) <= 0x1F9FF or  # Main emoji range
+                0x2600 <= ord(char) <= 0x26FF or    # Symbols
+                0x2700 <= ord(char) <= 0x27BF       # Misc symbols
+                for char in title
+            )
+            if not has_emoji:
                 return f"{emoji} {title}"
             break
     
@@ -283,8 +295,7 @@ def render_outro_cta_card() -> Image.Image:
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Large CTA emoji and text
-    font_emoji = _load_font(80)
+    # Large CTA fonts
     font_main = _load_font(48)
     font_sub = _load_font(32)
     
