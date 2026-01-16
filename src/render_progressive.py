@@ -14,6 +14,10 @@ from .logger import get_logger
 
 logger = get_logger(__name__)
 
+# Maximum number of TTS fragments that can form a single original word
+# Most contractions split into 2-3 parts (e.g., "What's" -> "What" + "s")
+MAX_CONTRACTION_PARTS = 5
+
 
 def create_progressive_text(
     word_timings: List[WordTiming],
@@ -62,10 +66,10 @@ def create_progressive_text(
     # Split on whitespace but keep track of positions
     original_words = re.findall(r'\S+', original_text)
     
-    # Normalize words for matching (lowercase, remove punctuation but keep numbers)
-    # This preserves alphanumeric characters which are important for matching
+    # Normalize words for matching (lowercase, remove punctuation)
+    # Note: \w already includes digits, letters, and underscores
     def normalize_word(word: str) -> str:
-        return re.sub(r'[^\w\d]', '', word.lower())
+        return re.sub(r'[^\w]', '', word.lower())
     
     # Build mapping from TTS words to original text positions
     tts_idx = 0
@@ -81,7 +85,7 @@ def create_progressive_text(
             word_map.append((original_words[original_idx], tts_idx))
             tts_idx += 1
             original_idx += 1
-        elif (tts_word_normalized and 
+        elif (len(tts_word_normalized) > 0 and 
               orig_word_normalized.startswith(tts_word_normalized) and
               len(tts_word_normalized) < len(orig_word_normalized)):
             # TTS word is a prefix of original word (e.g., contraction split: "What" + "s" = "Whats")
@@ -92,12 +96,11 @@ def create_progressive_text(
             tts_idx += 1
             
             # Safety: limit iterations to prevent infinite loop
-            max_iterations = 5  # Most contractions split into 2-3 parts
             iterations = 0
             
             while (tts_idx < len(word_timings) and 
                    accumulated_tts != orig_word_normalized and
-                   iterations < max_iterations):
+                   iterations < MAX_CONTRACTION_PARTS):
                 next_tts = normalize_word(word_timings[tts_idx].text)
                 accumulated_tts += next_tts
                 tts_idx += 1
