@@ -316,7 +316,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
         alpha = int(60 * (1 - abs(t - 0.5) * 2))  # Fade at edges
         color = (*theme.border_gradient_start[:3], alpha)
         # Map step index back to an x-coordinate within the gradient span
-        x = theme.padding + int(i * divider_width / (steps - 1))
+        x = theme.padding + int(i * divider_width / (steps - 1)) if steps > 1 else theme.padding
         draw.line((x, divider_y, x, divider_y + 2), fill=color, width=step)
     
     y += 28
