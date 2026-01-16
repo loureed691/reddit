@@ -129,7 +129,10 @@ def tts_to_mp3_with_word_timings(text: str, mp3_path: str, opts: TTSOptions) -> 
             return asyncio.run(_edge_tts_with_word_timings(text, mp3_path, opts))
         except Exception as e:
             # Log the error and fallback to pyttsx3
-            logger.warning(f"edge-tts failed ({e}), falling back to pyttsx3")
+            logger.warning(
+                f"edge-tts failed ({type(e).__name__}: {e}), falling back to pyttsx3 "
+                "(word timings will not be available)"
+            )
             engine = "pyttsx3"
 
     if engine == "pyttsx3":
@@ -147,7 +150,10 @@ def tts_to_mp3_with_word_timings(text: str, mp3_path: str, opts: TTSOptions) -> 
                 os.remove(tmp_wav)
             except Exception as cleanup_error:
                 logger.debug(f"Failed to remove temporary WAV file {tmp_wav}: {cleanup_error}")
-            logger.debug(f"TTS generated successfully with pyttsx3 (no word timings available)")
+            logger.warning(
+                "TTS generated with pyttsx3: word timings are not available with this engine. "
+                "For word-by-word animation, ensure edge-tts can connect to the internet."
+            )
             return []  # pyttsx3 doesn't provide word timings
         except Exception as e:
             logger.error(f"TTS failed (pyttsx3): {e}")
