@@ -154,14 +154,18 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     # The sinusoidal pattern is proven to retain attention better in viral content
     vf = f"zoompan=z='1.15+0.15*sin(on/{fps}/2)':x='iw/2-(iw/zoom/2)+sin(on/{fps})*20':y='ih/2-(ih/zoom/2)+cos(on/{fps})*20':d=1:s={W}x{H}:fps={fps},format=yuv420p"
     
-    (
-        ffmpeg
-        .input(tmp_png, loop=1, framerate=fps)
-        .filter_("fps", fps=fps)
-        .output(out_mp4, vf=vf, vcodec="libx264", pix_fmt="yuv420p", r=fps, t=seconds, movflags="+faststart")
-        .overwrite_output()
-        .run(quiet=True)
-    )
+    try:
+        (
+            ffmpeg
+            .input(tmp_png, loop=1, framerate=fps)
+            .filter_("fps", fps=fps)
+            .output(out_mp4, vf=vf, vcodec="libx264", pix_fmt="yuv420p", r=fps, t=seconds, movflags="+faststart")
+            .overwrite_output()
+            .run(capture_stdout=True, capture_stderr=True)
+        )
+    except ffmpeg.Error as e:
+        err = e.stderr.decode("utf8", errors="ignore") if e.stderr else str(e)
+        raise RuntimeError(f"ffmpeg failed to generate background video:\n{err}")
 
     try:
         os.remove(tmp_png)
