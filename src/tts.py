@@ -71,7 +71,7 @@ async def _edge_tts_with_word_timings(text: str, mp3_path: str, opts: TTSOptions
     import edge_tts
     _ensure_dir(mp3_path)
     
-    communicate = edge_tts.Communicate(text=text, voice=opts.edge_voice, rate=opts.rate, volume=opts.volume)
+    communicate = edge_tts.Communicate(text=text, voice=opts.edge_voice, rate=opts.rate, volume=opts.volume, boundary="WordBoundary")
     
     word_timings: List[WordTiming] = []
     audio_chunks: List[bytes] = []
