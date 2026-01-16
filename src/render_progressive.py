@@ -13,15 +13,19 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 
-def create_progressive_text(word_timings: List[WordTiming]) -> List[Tuple[str, float, float]]:
-    """Create progressive text reveals from word timings.
+def create_progressive_text(
+    word_timings: List[WordTiming],
+    original_text: str = ""
+) -> List[Tuple[str, float, float]]:
+    """Create progressive text reveals from word timings, aligned with original text.
     
     Args:
         word_timings: List of WordTiming objects from TTS
+        original_text: The original text (with proper formatting/punctuation)
     
     Returns:
         List of tuples (partial_text, start_time, duration) where:
-        - partial_text: Text to display up to this point
+        - partial_text: Text to display up to this point (from original text)
         - start_time: When to show this frame (seconds from start)
         - duration: How long to show this frame (seconds)
     """
@@ -31,20 +35,95 @@ def create_progressive_text(word_timings: List[WordTiming]) -> List[Tuple[str, f
     
     progressive_frames: List[Tuple[str, float, float]] = []
     
-    # Build progressive text using word timings directly
-    # This ensures we match the TTS output exactly
-    accumulated_text = ""
+    # If no original text provided, fall back to using TTS text directly
+    if not original_text:
+        accumulated_text = ""
+        for i, timing in enumerate(word_timings):
+            # Add word to accumulated text with proper spacing
+            if accumulated_text:
+                accumulated_text += " " + timing.text
+            else:
+                accumulated_text = timing.text
+            
+            # Calculate duration: until next word or end of audio
+            if i < len(word_timings) - 1:
+                duration = word_timings[i+1].offset - timing.offset
+            else:
+                # Last word: use its duration
+                duration = timing.duration
+            
+            progressive_frames.append((accumulated_text, timing.offset, duration))
+        return progressive_frames
     
-    for i, timing in enumerate(word_timings):
+    # Align TTS word timings with original text
+    # Split original text into words (preserving word boundaries)
+    import re
+    # Split on whitespace but keep track of positions
+    original_words = re.findall(r'\S+', original_text)
+    
+    # Normalize words for matching (lowercase, remove punctuation)
+    def normalize_word(word: str) -> str:
+        return re.sub(r'[^\w]', '', word.lower())
+    
+    # Build mapping from TTS words to original text positions
+    tts_idx = 0
+    original_idx = 0
+    word_map = []  # List of (original_word, tts_timing_idx)
+    
+    while tts_idx < len(word_timings) and original_idx < len(original_words):
+        tts_word_normalized = normalize_word(word_timings[tts_idx].text)
+        orig_word_normalized = normalize_word(original_words[original_idx])
+        
+        if tts_word_normalized == orig_word_normalized:
+            # Direct match
+            word_map.append((original_words[original_idx], tts_idx))
+            tts_idx += 1
+            original_idx += 1
+        elif tts_word_normalized in orig_word_normalized:
+            # TTS word is part of original word (e.g., contraction split)
+            # Accumulate TTS words until we match the original word
+            accumulated_tts = tts_word_normalized
+            start_tts_idx = tts_idx
+            tts_idx += 1
+            
+            while tts_idx < len(word_timings) and accumulated_tts != orig_word_normalized:
+                next_tts = normalize_word(word_timings[tts_idx].text)
+                accumulated_tts += next_tts
+                tts_idx += 1
+            
+            # Use the first TTS timing for this original word
+            word_map.append((original_words[original_idx], start_tts_idx))
+            original_idx += 1
+        else:
+            # Mismatch - skip TTS word (might be TTS artifact)
+            logger.debug(f"Skipping unmatched TTS word: '{word_timings[tts_idx].text}'")
+            tts_idx += 1
+    
+    # Add any remaining original words with the last known timing
+    while original_idx < len(original_words):
+        last_tts_idx = len(word_timings) - 1 if word_timings else 0
+        word_map.append((original_words[original_idx], last_tts_idx))
+        original_idx += 1
+    
+    # Build progressive frames using original text
+    accumulated_text = ""
+    for i, (orig_word, tts_idx) in enumerate(word_map):
         # Add word to accumulated text with proper spacing
         if accumulated_text:
-            accumulated_text += " " + timing.text
+            accumulated_text += " " + orig_word
         else:
-            accumulated_text = timing.text
+            accumulated_text = orig_word
+        
+        # Get timing from TTS
+        timing = word_timings[tts_idx] if tts_idx < len(word_timings) else word_timings[-1]
         
         # Calculate duration: until next word or end of audio
-        if i < len(word_timings) - 1:
-            duration = word_timings[i+1].offset - timing.offset
+        if i < len(word_map) - 1:
+            next_tts_idx = word_map[i + 1][1]
+            if next_tts_idx < len(word_timings):
+                duration = word_timings[next_tts_idx].offset - timing.offset
+            else:
+                duration = timing.duration
         else:
             # Last word: use its duration
             duration = timing.duration
@@ -77,7 +156,7 @@ def render_progressive_title_cards(
     """
     import os
     
-    progressive_frames = create_progressive_text(word_timings)
+    progressive_frames = create_progressive_text(word_timings, title)
     
     if not progressive_frames:
         # No word timings: render single card with full audio duration
@@ -123,7 +202,7 @@ def render_progressive_comment_cards(
     """
     import os
     
-    progressive_frames = create_progressive_text(word_timings)
+    progressive_frames = create_progressive_text(word_timings, body)
     
     if not progressive_frames:
         # No word timings: render single card with full audio duration

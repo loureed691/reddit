@@ -22,8 +22,8 @@ class CardTheme:
     """Theme configuration for card rendering with glassmorphism design.
     
     Dimensions are optimized for vertical video (1080x1920):
-    - card_w: 920px fits comfortably with margins in 1080px width
-    - padding: 56px provides breathing room for content
+    - card_w: 980px fills more of the screen for better mobile visibility
+    - padding: 64px provides breathing room for content
     - radius: 40px creates modern rounded corners without being excessive
     
     Colors chosen for:
@@ -31,8 +31,8 @@ class CardTheme:
     - Premium glassmorphism aesthetic (semi-transparent with gradient borders)
     - Mobile readability (sufficient contrast ratios)
     """
-    card_w: int = 920  # Card width optimized for 1080px vertical video
-    padding: int = 56  # Internal padding for content breathing room
+    card_w: int = 980  # Increased from 920px for better mobile visibility
+    padding: int = 64  # Increased from 56px for more breathing room
     radius: int = 40   # Corner radius for modern aesthetic
     # Modern glassmorphism - semi-transparent dark with blur effect simulation
     bg: Tuple[int,int,int,int] = (15, 15, 20, 245)  # ~96% opacity for depth
@@ -154,17 +154,17 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Use larger fonts for better readability
-    font_title = _load_font(56)
-    font_sub = _load_font(32)
+    # Use larger fonts for better mobile readability
+    font_title = _load_font(64)  # Increased from 56px
+    font_sub = _load_font(36)    # Increased from 32px
 
     max_text_w = W - 2*theme.padding - 40  # Extra margin for accent bar
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
     # Estimate height with better spacing
-    line_h_title = 68
-    line_h_sub = 42
+    line_h_title = 76   # Increased from 68px
+    line_h_sub = 46     # Increased from 42px
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -242,14 +242,14 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    font_author = _load_font(34)
-    font_body = _load_font(36)
-    font_meta = _load_font(26)
+    font_author = _load_font(38)   # Increased from 34px
+    font_body = _load_font(42)     # Increased from 36px
+    font_meta = _load_font(28)     # Increased from 26px
 
     max_text_w = W - 2*theme.padding
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 46
+    line_h = 52         # Increased from 46px
     header_h = 120
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
