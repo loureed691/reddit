@@ -11,6 +11,7 @@ from __future__ import annotations
 import multiprocessing
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
@@ -203,8 +204,6 @@ def _render_video_with_cards_and_word_captions(
 ):
     """Render video with Reddit cards AND word-by-word captions on top."""
     logger.info("Rendering with Reddit cards + word-by-word captions")
-    
-    import subprocess
     
     # Build complex filter that overlays cards, then adds word captions
     # Step 1: Scale background
