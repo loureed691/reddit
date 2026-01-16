@@ -194,7 +194,7 @@ class RedditVideoFactory:
         """Generate a Reddit video from a thread URL or ID.
         
         Main pipeline: fetch → render cards → TTS → background → assemble.
-        Includes proper error handling and resource cleanup.
+        Supports both static card overlays and word-by-word captions.
         """
         if not url_or_id:
             raise ValueError("URL or thread ID is required")
@@ -211,9 +211,11 @@ class RedditVideoFactory:
         
         logger.info(f"Target video duration: {target_duration}s ({duration_cfg.mode} mode)")
         
+        # Check if word captions are enabled
+        word_captions_enabled = self.cfg.settings.word_captions.enabled
+        logger.info(f"Word-by-word captions: {'enabled' if word_captions_enabled else 'disabled'}")
+        
         # Fetch with potentially more comments for duration targeting
-        # For long mode, estimate required comment count from target duration,
-        # assuming an average of ~10 seconds of audio per comment.
         if duration_cfg.mode == "long":
             estimated_seconds_per_comment = 10
             estimated_needed_comments = max(1, int(target_duration / estimated_seconds_per_comment))
@@ -237,8 +239,11 @@ class RedditVideoFactory:
         temp_dir = f"assets/temp/{reddit_id}"
         png_dir = f"{temp_dir}/png"
         mp3_dir = f"{temp_dir}/mp3"
+        timestamps_dir = f"{temp_dir}/timestamps"
         _ensure_dir(png_dir)
         _ensure_dir(mp3_dir)
+        if word_captions_enabled:
+            _ensure_dir(timestamps_dir)
 
         _safe_write_json(f"{temp_dir}/thread.json", {
             "thread_id": thread.thread_id,
@@ -247,15 +252,7 @@ class RedditVideoFactory:
             "comments": [{"author": c.author, "score": c.score, "body": c.body} for c in thread.comments],
         })
 
-        # 1) Render cards
-        logger.info("Rendering cards...")
-        title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
-        title_png = f"{png_dir}/title.png"
-        # Only optimize PNGs if keeping temp files, otherwise it's wasted time
-        title_img.save(title_png, optimize=keep_temp)
-
-        # 2) TTS for title first to estimate duration
-        logger.info("Generating TTS audio...")
+        # TTS options
         tts_opts = TTSOptions(
             engine=self.cfg.settings.voice.engine,
             edge_voice=self.cfg.settings.voice.edge_voice,
@@ -263,27 +260,54 @@ class RedditVideoFactory:
             volume=self.cfg.settings.voice.volume,
         )
 
+        # Generate TTS for title
+        logger.info("Generating TTS audio...")
         title_mp3 = f"{mp3_dir}/title.mp3"
-        tts_to_mp3(thread.title, title_mp3, tts_opts)
+        
+        if word_captions_enabled:
+            # Generate with timestamps
+            title_timestamps = tts_to_mp3_with_timestamps(thread.title, title_mp3, tts_opts)
+            if title_timestamps:
+                save_word_timestamps_json(
+                    title_timestamps,
+                    os.path.join(timestamps_dir, "title_timestamps.json")
+                )
+        else:
+            # Generate without timestamps
+            tts_to_mp3(thread.title, title_mp3, tts_opts)
+            title_timestamps = []
         
         # Estimate how much time we have for comments
         title_duration = probe_duration(title_mp3)
         remaining_duration = max(0, target_duration - title_duration)
         
-        # Select comments to fit target duration, but handle case where title
-        # already consumes or exceeds the target duration
+        # Select comments to fit target duration
         if remaining_duration <= 0:
             logger.warning(
                 "Title duration meets or exceeds target duration; no comments will be added"
             )
             selected_comments = []
             comment_mp3s = []
+            comment_timestamps_list = []
         else:
-            selected_comments, comment_mp3s = self._select_comments_for_duration(
-                thread.comments, remaining_duration, tts_opts, mp3_dir
-            )
+            if word_captions_enabled:
+                selected_comments, comment_mp3s, comment_timestamps_list = \
+                    self._select_comments_for_duration_with_timestamps(
+                        thread.comments, remaining_duration, tts_opts, mp3_dir, timestamps_dir
+                    )
+            else:
+                selected_comments, comment_mp3s = self._select_comments_for_duration(
+                    thread.comments, remaining_duration, tts_opts, mp3_dir
+                )
+                comment_timestamps_list = []
         
         logger.info(f"Selected {len(selected_comments)} comments for target duration")
+
+        # Render cards (still needed for fallback or when word captions disabled)
+        logger.info("Rendering cards...")
+        title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
+        title_png = f"{png_dir}/title.png"
+        title_img.save(title_png, optimize=keep_temp)
 
         comment_pngs: List[str] = []
         for i, c in enumerate(selected_comments):
@@ -292,7 +316,7 @@ class RedditVideoFactory:
             img.save(p, optimize=keep_temp)
             comment_pngs.append(p)
 
-        # 3) Background
+        # Background
         logger.info("Preparing background...")
         bg_cfg = self.cfg.settings.background
         bg_mp4 = f"{temp_dir}/background.mp4"
@@ -314,11 +338,11 @@ class RedditVideoFactory:
             else:
                 raise FileNotFoundError("No background provided and auto_generate_background=false")
 
-        # Optional background audio mp3 (user can drop a file here)
+        # Optional background audio mp3
         bg_mp3 = f"{temp_dir}/background.mp3"
         bg_audio_path = bg_mp3 if os.path.exists(bg_mp3) else None
 
-        # 4) Assemble
+        # Assemble
         logger.info("Assembling final video...")
         audio_mp3 = f"{temp_dir}/audio.mp3"
         audio_paths = [title_mp3] + comment_mp3s
@@ -337,6 +361,56 @@ class RedditVideoFactory:
         logger.debug(f"Total audio duration: {sum(durations):.2f}s")
         logger.debug(f"Images count: {len(images)}")
 
+        # Generate word captions filter if enabled
+        word_captions_filter = None
+        if word_captions_enabled and (title_timestamps or any(comment_timestamps_list)):
+            logger.info("Generating word-by-word caption filters...")
+            
+            # Combine all word timestamps with time offsets
+            all_word_timestamps = []
+            cumulative_time = 0.0
+            
+            # Add title word timestamps
+            for wt in title_timestamps:
+                all_word_timestamps.append(
+                    WordTimestamp(
+                        word=wt.word,
+                        start_ms=wt.start_ms + cumulative_time,
+                        end_ms=wt.end_ms + cumulative_time,
+                    )
+                )
+            cumulative_time += title_duration * 1000  # Convert to ms
+            
+            # Add comment word timestamps
+            for i, comment_timestamps in enumerate(comment_timestamps_list):
+                for wt in comment_timestamps:
+                    all_word_timestamps.append(
+                        WordTimestamp(
+                            word=wt.word,
+                            start_ms=wt.start_ms + cumulative_time,
+                            end_ms=wt.end_ms + cumulative_time,
+                        )
+                    )
+                if i < len(durations) - 1:  # Don't add duration after last comment
+                    cumulative_time += durations[i + 1] * 1000  # Convert to ms
+            
+            # Generate filter string
+            caption_cfg = self.cfg.settings.word_captions
+            y_position = int(self.cfg.settings.resolution_h * caption_cfg.y_position_percent)
+            
+            word_captions_filter = generate_word_captions_filter(
+                all_word_timestamps,
+                video_width=self.cfg.settings.resolution_w,
+                video_height=self.cfg.settings.resolution_h,
+                font_size=caption_cfg.font_size,
+                font_color=caption_cfg.font_color,
+                border_color=caption_cfg.border_color,
+                border_width=caption_cfg.border_width,
+                y_position=y_position,
+            )
+            
+            logger.debug(f"Generated caption filter for {len(all_word_timestamps)} words")
+
         render_video(
             background_mp4=bg_mp4,
             out_mp4=out_mp4,
@@ -349,6 +423,7 @@ class RedditVideoFactory:
             opacity=self.cfg.settings.opacity,
             bg_audio_mp3=bg_audio_path,
             bg_audio_volume=float(bg_cfg.background_audio_volume if bg_cfg.enable_extra_audio else 0.0),
+            word_captions_filter=word_captions_filter,
         )
 
         if not keep_temp:

@@ -82,7 +82,7 @@ def generate_word_captions_filter(
 
 
 def _escape_ffmpeg_text(text: str) -> str:
-    """Escape special characters for ffmpeg drawtext filter.
+    r"""Escape special characters for ffmpeg drawtext filter.
     
     FFmpeg drawtext requires escaping: ' \ : [ ]
     """
