@@ -18,7 +18,7 @@
       "background_audio_volume": 0.12,
       "auto_generate_background": true,
       "background_seconds": 0,
-      "style": "gradient"
+      "style": "particles"
     },
     "video_duration": {
       "mode": "short",
