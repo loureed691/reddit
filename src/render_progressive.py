@@ -4,6 +4,8 @@ This module provides functionality to render cards with text appearing word by w
 synchronized with TTS audio for enhanced viewer engagement.
 """
 from __future__ import annotations
+import os
+import re
 from typing import List, Tuple
 
 from .render_cards import render_title_card, render_comment_card
@@ -57,7 +59,6 @@ def create_progressive_text(
     
     # Align TTS word timings with original text
     # Split original text into words (preserving word boundaries)
-    import re
     # Split on whitespace but keep track of positions
     original_words = re.findall(r'\S+', original_text)
     
@@ -100,10 +101,16 @@ def create_progressive_text(
             tts_idx += 1
     
     # Add any remaining original words with the last known timing
-    while original_idx < len(original_words):
-        last_tts_idx = len(word_timings) - 1 if word_timings else 0
-        word_map.append((original_words[original_idx], last_tts_idx))
-        original_idx += 1
+    if word_timings and original_idx < len(original_words):
+        last_tts_idx = len(word_timings) - 1
+        while original_idx < len(original_words):
+            word_map.append((original_words[original_idx], last_tts_idx))
+            original_idx += 1
+    
+    # If no word map was built, fall back to empty result
+    if not word_map:
+        logger.warning("Could not map TTS timings to original text, returning empty frames")
+        return []
     
     # Build progressive frames using original text
     accumulated_text = ""
@@ -114,8 +121,15 @@ def create_progressive_text(
         else:
             accumulated_text = orig_word
         
-        # Get timing from TTS
-        timing = word_timings[tts_idx] if tts_idx < len(word_timings) else word_timings[-1]
+        # Get timing from TTS - safe access with bounds check
+        if tts_idx < len(word_timings):
+            timing = word_timings[tts_idx]
+        elif word_timings:
+            timing = word_timings[-1]
+        else:
+            # No timings available, skip
+            logger.warning("No word timings available during frame building")
+            break
         
         # Calculate duration: until next word or end of audio
         if i < len(word_map) - 1:
@@ -154,8 +168,6 @@ def render_progressive_title_cards(
     Returns:
         List of tuples (image_path, duration) for each progressive frame
     """
-    import os
-    
     progressive_frames = create_progressive_text(word_timings, title)
     
     if not progressive_frames:
@@ -200,8 +212,6 @@ def render_progressive_comment_cards(
     Returns:
         List of tuples (image_path, duration) for each progressive frame
     """
-    import os
-    
     progressive_frames = create_progressive_text(word_timings, body)
     
     if not progressive_frames:
