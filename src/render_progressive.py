@@ -13,6 +13,27 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 
+def _calculate_duration_from_timings(word_timings: List[WordTiming], fallback_duration: float) -> float:
+    """Calculate total duration from word timings or use fallback.
+    
+    Args:
+        word_timings: List of WordTiming objects from TTS
+        fallback_duration: Duration to use if word timings are not available
+    
+    Returns:
+        Total duration in seconds
+    """
+    if not word_timings:
+        return fallback_duration
+    
+    progressive_frames = create_progressive_text(word_timings)
+    if not progressive_frames:
+        return fallback_duration
+    
+    total_duration = sum(duration for _, _, duration in progressive_frames)
+    return total_duration if total_duration > 0 else fallback_duration
+
+
 def create_progressive_text(word_timings: List[WordTiming]) -> List[Tuple[str, float, float]]:
     """Create progressive text reveals from word timings.
     
@@ -91,14 +112,10 @@ def render_progressive_title_cards(
     path = os.path.join(png_dir, f"{base_name}.png")
     img.save(path, optimize=False)
     
-    # Use provided audio duration or calculate from word timings
-    if word_timings:
-        # Calculate total duration from word timings if available
-        total_duration = sum(duration for _, _, duration in create_progressive_text(word_timings))
-        if total_duration > 0:
-            audio_duration = total_duration
+    # Calculate duration from word timings if available, otherwise use fallback
+    final_duration = _calculate_duration_from_timings(word_timings, audio_duration)
     
-    result = [(path, audio_duration)]
+    result = [(path, final_duration)]
     logger.debug(f"Rendered title card with full text (word-by-word disabled to prevent jumping)")
     return result
 
@@ -142,13 +159,9 @@ def render_progressive_comment_cards(
     path = os.path.join(png_dir, f"{base_name}.png")
     img.save(path, optimize=False)
     
-    # Use provided audio duration or calculate from word timings
-    if word_timings:
-        # Calculate total duration from word timings if available
-        total_duration = sum(duration for _, _, duration in create_progressive_text(word_timings))
-        if total_duration > 0:
-            audio_duration = total_duration
+    # Calculate duration from word timings if available, otherwise use fallback
+    final_duration = _calculate_duration_from_timings(word_timings, audio_duration)
     
-    result = [(path, audio_duration)]
+    result = [(path, final_duration)]
     logger.debug(f"Rendered comment card with full text (word-by-word disabled to prevent jumping)")
     return result
