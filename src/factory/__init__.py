@@ -110,7 +110,7 @@ class RedditVideoFactory:
                     # Validate that word timings were actually captured. Some TTS backends may
                     # fall back to plain audio generation and return an empty list here.
                     if not word_timings:
-                        logger.warning(
+                        logger.debug(
                             "Word timings were requested but not captured for comment %d; "
                             "falling back to static card animation for this segment.",
                             i,
