@@ -391,8 +391,10 @@ class RedditVideoFactory:
                             end_ms=wt.end_ms + cumulative_time,
                         )
                     )
-                if i < len(durations) - 1:  # Don't add duration after last comment
-                    cumulative_time += durations[i + 1] * 1000  # Convert to ms
+                # Add this comment's duration for the next iteration
+                # durations = [title_duration, comment0_duration, comment1_duration, ...]
+                # So comment i's duration is at durations[i + 1]
+                cumulative_time += durations[i + 1] * 1000  # Convert to ms
             
             # Generate filter string
             caption_cfg = self.cfg.settings.word_captions

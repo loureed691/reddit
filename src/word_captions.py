@@ -113,7 +113,11 @@ def save_word_timestamps_json(
         for wt in word_timestamps
     ]
     
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    # Create directory only if path has a directory component
+    dir_path = os.path.dirname(output_path)
+    if dir_path:
+        os.makedirs(dir_path, exist_ok=True)
+    
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     
