@@ -10,6 +10,7 @@ No magic, no hidden utils folder. Just files.
 - **Duplicate Prevention**: Tracks produced videos to avoid creating duplicates
 - **Configurable Video Lengths**: Create short (1-2 minutes) or long (60 minutes) videos
 - **Manual or Auto Mode**: Run with specific URLs or let it find posts automatically
+- **Word-by-Word Text Animation**: Text appears word by word synchronized with TTS audio for enhanced engagement
 
 ## What you need installed
 
@@ -94,6 +95,24 @@ Edit `config.json` to customize:
 }
 ```
 
+### Word-by-Word Animation Settings
+
+```json
+"settings": {
+  "word_by_word_animation": true     // Enable word-by-word text animation (default: true)
+}
+```
+
+When enabled, text on Reddit cards appears word by word, synchronized with the TTS audio. This creates a more engaging viewing experience, especially for short-form viral content on TikTok, YouTube Shorts, and Instagram Reels.
+
+**How it works:**
+- Uses edge-tts WordBoundary events to capture precise timing for each spoken word
+- Generates multiple card images showing progressive text reveal
+- Overlays cards at precise timings to match the spoken audio
+- Falls back to showing full text immediately if word timings are unavailable (e.g., with pyttsx3)
+
+**Performance note:** Word-by-word animation generates more image files and overlay operations. For videos with many long comments, you may want to disable this feature by setting `"word_by_word_animation": false` in your config.
+
 ## Options
 
 - **Automated mode**:
@@ -115,12 +134,15 @@ Edit `config.json` to customize:
 1. **Search** (Auto mode): Find suitable posts from configured subreddits
 2. **Fetch**: Get thread JSON from `https://www.reddit.com/comments/<id>.json`
 3. **Duration Targeting**: Select comments to fit target duration (90s or 3600s)
-4. **Render Cards**: Create PNG images with Pillow (`title.png` + `comment_0.png`…)
+4. **Render Cards**: Create PNG images with Pillow
+   - With word-by-word animation: Generate multiple progressive frames per card
+   - Without animation: Generate single static card per title/comment
 5. **Generate TTS MP3**:
    - Default: `edge-tts` (best quality, needs internet)
    - Voice: `en-US-AriaNeural` (optimized for viral content)
    - Rate: `+12%` (1.12x speed for better engagement)
-   - Fallback: `pyttsx3` (offline, robotic)
+   - Captures word boundary timings when word-by-word animation is enabled
+   - Fallback: `pyttsx3` (offline, robotic, no word timings)
 6. **Background**:
    - If you pass `--background`, it uses that
    - Else it generates a viral-optimized animated background:
@@ -130,7 +152,9 @@ Edit `config.json` to customize:
      - Optimized for TikTok, YouTube Shorts, Instagram Reels engagement
 7. **Merge**:
    - Concatenate audio clips
-   - Overlay cards on background in sync with audio duration
+   - Overlay cards on background with precise timing
+   - Word-by-word mode: Multiple overlays per card synchronized with speech
+   - Traditional mode: Single overlay per card for entire audio duration
    - Encode `libx264 + aac` MP4, `yuv420p`, `faststart`
 8. **Track** (Auto mode): Mark video as produced to prevent duplicates
 
