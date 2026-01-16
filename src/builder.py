@@ -157,9 +157,11 @@ def render_video(
         v = ffmpeg.input(img_path)["v"].filter("scale", screenshot_width, -1)
         if apply_opacity:
             v = v.filter("colorchannelmixer", aa=opacity)
+        # Use gte()*lt() instead of between() to prevent frame overlap at boundaries
+        # This ensures frames show when: start <= t < start+dur (not start <= t <= start+dur)
         return base.overlay(
             v,
-            enable=f"between(t,{start},{start+dur})",
+            enable=f"gte(t,{start})*lt(t,{start+dur})",
             x="(main_w-overlay_w)/2",
             y="(main_h-overlay_h)/2",
         )
