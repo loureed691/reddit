@@ -236,30 +236,54 @@ The background generation has been optimized for maximum engagement on short-for
 
 ### Visual Styles
 
-Three background styles are available, configurable in `config.json`:
+Five state-of-the-art background styles are available, configurable in `config.json`:
 
-1. **Gradient (Default)** - Diagonal gradients with vibrant color schemes
-   - Purple-pink (trending on TikTok)
+1. **Particles (Default - Most Engaging)** - Dynamic particle field with glowing effects
+   - Hundreds of animated light particles creating depth and motion
+   - Excellent for maximum viewer retention and engagement
+   - Perfect for high-energy, viral-optimized content
+
+2. **Waves (NEW - Hypnotic)** - Flowing wave patterns with multiple frequencies
+   - Mesmerizing wave animations that create a calming yet engaging effect
+   - Great for longer-form content where you want sustained attention
+   - Works well with educational or explanatory content
+
+3. **Gradient (Enhanced)** - Smooth diagonal gradients with vibrant colors
+   - Sunset Orange-Pink (high energy)
    - Blue-cyan (clean, modern)
-   - Orange-red (high energy)
+   - Purple-pink (trending on TikTok)
    - Teal-green (calming but vibrant)
    - Violet-blue (mysterious, engaging)
 
-2. **Radial** - Center-focused gradients that draw attention to the middle
+4. **Radial** - Center-focused gradients that draw attention to the middle
    - Creates a natural focal point for text overlays
    - Excellent for story-telling content
+   - Enhanced with smoother falloff curves
 
-3. **Noise** - Enhanced version of the original noise background
+5. **Noise** - Enhanced version of the original noise background
    - Brighter, more vibrant colors than before
    - Good for less distracting backgrounds
 
 ### Dynamic Motion
 
-The background features a sinusoidal zoom/pan effect that creates a subtle "breathing" motion:
-- Non-linear movement feels more organic than linear zoom
-- Zoom is computed as `z = 1.15 + 0.15 * sin(on/{fps}/2)`, which evaluates to a smooth oscillation between 1.0x (1.15 - 0.15) and 1.3x (1.15 + 0.15)
-- Gentle side-to-side motion (20px radius)
-- Proven to retain attention better in viral content analysis
+The background features enhanced motion patterns optimized for each style:
+
+**Particles Style:**
+- Energetic motion with zoom oscillation (1.0-1.4x range)
+- Rapid circular pan with 30px radius
+- Creates excitement and energy
+
+**Waves Style:**
+- Slower, flowing motion with zoom oscillation (0.97-1.33x range)
+- Gentle pan with 25px radius
+- Creates a calming, hypnotic effect
+
+**Gradient/Radial Styles:**
+- Balanced motion with rotation-like effect (1.01-1.35x range)
+- Circular pan with subtle asymmetric motion
+- Natural, organic feel
+
+All motion patterns use sinusoidal (non-linear) movement for a "breathing" effect that's proven to retain attention better than linear movement in viral content analysis.
 
 ### Configuration
 
@@ -267,17 +291,25 @@ Edit `config.json` to customize:
 
 ```json
 "background": {
-  "style": "gradient",  // "gradient", "radial", or "noise"
+  "style": "particles",  // "particles", "waves", "gradient", "radial", or "noise"
   "auto_generate_background": true,
   "background_audio_volume": 0.12
 }
 ```
 
+**Recommended Styles by Content Type:**
+- **Viral/Short-form content:** Use "particles" for maximum engagement
+- **Long-form/Educational:** Use "waves" for sustained attention without distraction
+- **Story/Narrative:** Use "gradient" or "radial" for focus on content
+- **Minimal distraction:** Use "noise" for subtler backgrounds
+
 ### Why These Optimizations Work
 
-1. **Vibrant Colors**: Gradient backgrounds with bold colors perform better than dark/muted tones on mobile devices
-2. **Dynamic Motion**: Subtle animation keeps viewers engaged without distracting from content
-3. **Platform Optimization**: Designed specifically for vertical video (1080x1920) on TikTok/Shorts/Reels
-4. **Visual Hierarchy**: Backgrounds complement text overlays rather than competing with them
+1. **Enhanced Visual Styles**: Particle and wave backgrounds provide more dynamic, engaging visuals than static gradients
+2. **Glassmorphism Cards**: Modern card design with gradient borders and shadows creates premium, professional look
+3. **Better Typography**: Larger fonts, improved spacing, and better color contrast ensure readability on mobile
+4. **Dynamic Motion**: Style-specific motion patterns keep viewers engaged without being distracting
+5. **Platform Optimization**: Designed specifically for vertical video (1080x1920) on TikTok/Shorts/Reels
+6. **Visual Hierarchy**: Improved card layouts with icons, badges, and separators guide viewer attention
 
-The gradient style is recommended for most content as it provides the best balance of visual interest and engagement without overwhelming the text content.
+The particles style is now the default as it provides the best balance of visual interest and engagement for viral short-form content, while waves style is recommended for longer videos where sustained attention is key.
