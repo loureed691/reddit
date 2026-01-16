@@ -22,6 +22,14 @@
       "mode": "short",
       "target_duration_seconds": 90,
       "long_duration_seconds": 3600
+    },
+    "word_captions": {
+      "enabled": true,
+      "font_size": 60,
+      "font_color": "white",
+      "border_color": "black",
+      "border_width": 3,
+      "y_position_percent": 0.70
     }
   },
   "reddit": {

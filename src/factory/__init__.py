@@ -2,8 +2,8 @@
 
 This module coordinates the entire pipeline:
 1. Fetch Reddit thread data
-2. Render title and comment cards as images
-3. Generate TTS audio for each text segment
+2. Render title and comment cards as images (or use word-by-word captions)
+3. Generate TTS audio for each text segment with word timestamps
 4. Create or use background video
 5. Assemble final video with ffmpeg
 
@@ -11,6 +11,7 @@ Optimizations:
 - Caching for fonts and duration probes
 - Optimized PNG compression
 - Better error handling and validation
+- Word-by-word caption sync for viral content
 """
 from __future__ import annotations
 import json
@@ -20,9 +21,10 @@ from typing import Any, List, Optional, Tuple
 from ..config import FactoryConfig
 from ..reddit_fetcher import extract_thread_id, fetch_thread, RedditComment
 from ..render_cards import render_title_card, render_comment_card
-from ..tts import tts_to_mp3, TTSOptions
+from ..tts import tts_to_mp3, tts_to_mp3_with_timestamps, TTSOptions, WordTimestamp
 from ..background import generate_background_mp4
 from ..builder import concat_audio, render_video, probe_duration
+from ..word_captions import generate_word_captions_filter, save_word_timestamps_json
 from ..logger import get_logger
 
 logger = get_logger(__name__)
@@ -124,6 +126,69 @@ class RedditVideoFactory:
                 continue
         
         return selected, mp3_paths
+
+    def _select_comments_for_duration_with_timestamps(
+        self, 
+        comments: List[RedditComment],
+        target_duration: float,
+        tts_opts: TTSOptions,
+        mp3_dir: str,
+        timestamps_dir: str
+    ) -> Tuple[List[RedditComment], List[str], List[List[WordTimestamp]]]:
+        """Select comments with word-level timestamps.
+        
+        Similar to _select_comments_for_duration but also extracts word timestamps.
+        
+        Returns:
+            Tuple of (selected_comments, mp3_paths, word_timestamps_list)
+            where word_timestamps_list[i] contains word timestamps for comment i.
+        """
+        # Handle edge case of non-positive target duration
+        if target_duration <= 0:
+            logger.warning("target_duration is zero or negative")
+        
+        selected = []
+        mp3_paths = []
+        all_word_timestamps = []
+        cumulative_duration = 0.0
+        
+        for i, comment in enumerate(comments):
+            mp3_path = os.path.join(mp3_dir, f"{i}.mp3")
+            try:
+                # Generate TTS with word timestamps
+                word_timestamps = tts_to_mp3_with_timestamps(comment.body, mp3_path, tts_opts)
+                duration = probe_duration(mp3_path)
+                
+                # Save timestamps to JSON for debugging
+                if word_timestamps:
+                    timestamps_json = os.path.join(timestamps_dir, f"{i}_timestamps.json")
+                    save_word_timestamps_json(word_timestamps, timestamps_json)
+                
+                # Check if adding this comment would exceed target
+                if cumulative_duration + duration > target_duration:
+                    # If this is the first comment, include it anyway
+                    if not selected:
+                        selected.append(comment)
+                        mp3_paths.append(mp3_path)
+                        all_word_timestamps.append(word_timestamps)
+                    else:
+                        # Remove the file we just created since we won't use it
+                        try:
+                            os.remove(mp3_path)
+                        except Exception:
+                            pass
+                    break
+                
+                selected.append(comment)
+                mp3_paths.append(mp3_path)
+                all_word_timestamps.append(word_timestamps)
+                cumulative_duration += duration
+                
+            except Exception as e:
+                logger.warning(f"Failed to generate TTS for comment {i}: {e}")
+                continue
+        
+        return selected, mp3_paths, all_word_timestamps
 
     def make_from_url(self, url_or_id: str, keep_temp: bool=False) -> str:
         """Generate a Reddit video from a thread URL or ID.

@@ -131,10 +131,15 @@ def render_video(
     opacity: float,
     bg_audio_mp3: Optional[str] = None,
     bg_audio_volume: float = 0.0,
+    word_captions_filter: Optional[str] = None,
 ):
     """Render final video with overlays and audio.
     
     Optimized with better ffmpeg presets and parallel processing.
+    
+    Args:
+        word_captions_filter: Optional ffmpeg drawtext filter chain for word-by-word captions.
+                             If provided, renders using raw ffmpeg command with filter_complex.
     """
     if len(image_paths) != len(image_durations):
         raise ValueError("image_paths and image_durations mismatch")
@@ -144,6 +149,137 @@ def render_video(
     
     logger.info(f"Rendering video: {len(image_paths)} images, resolution {W}x{H}")
     logger.debug(f"Output: {out_mp4}")
+
+    total_len = max(0.1, sum(max(0.0, d) for d in image_durations))
+    logger.debug(f"Total video length: {total_len:.2f}s")
+
+    # Use word captions rendering if filter is provided
+    if word_captions_filter:
+        _render_video_with_word_captions(
+            background_mp4=background_mp4,
+            out_mp4=out_mp4,
+            audio_mp3=audio_mp3,
+            W=W,
+            H=H,
+            total_len=total_len,
+            word_captions_filter=word_captions_filter,
+            bg_audio_mp3=bg_audio_mp3,
+            bg_audio_volume=bg_audio_volume,
+        )
+    else:
+        _render_video_with_static_overlays(
+            background_mp4=background_mp4,
+            out_mp4=out_mp4,
+            audio_mp3=audio_mp3,
+            image_paths=image_paths,
+            image_durations=image_durations,
+            W=W,
+            H=H,
+            screenshot_width=screenshot_width,
+            opacity=opacity,
+            total_len=total_len,
+            bg_audio_mp3=bg_audio_mp3,
+            bg_audio_volume=bg_audio_volume,
+        )
+
+def _render_video_with_word_captions(
+    background_mp4: str,
+    out_mp4: str,
+    audio_mp3: str,
+    W: int,
+    H: int,
+    total_len: float,
+    word_captions_filter: str,
+    bg_audio_mp3: Optional[str] = None,
+    bg_audio_volume: float = 0.0,
+):
+    """Render video with word-by-word captions using raw ffmpeg command."""
+    logger.info("Rendering with word-by-word captions")
+    
+    import subprocess
+    import tempfile
+    
+    # Build filter_complex for video processing
+    # Scale background, then apply word caption drawtext filters
+    filter_complex = f"[0:v]scale={W}:{H}[scaled];[scaled]{word_captions_filter}[vout]"
+    
+    # Build ffmpeg command
+    cmd = [
+        "ffmpeg",
+        "-i", background_mp4,  # Input 0: background video
+        "-i", audio_mp3,       # Input 1: main audio
+    ]
+    
+    # Add background audio if provided
+    audio_filter = None
+    if bg_audio_mp3 and bg_audio_volume > 0 and os.path.exists(bg_audio_mp3):
+        cmd.extend(["-i", bg_audio_mp3])  # Input 2: background audio
+        # Mix audio streams
+        audio_filter = f"[1:a]volume=1.0[a1];[2:a]volume={bg_audio_volume}[a2];[a1][a2]amix=duration=longest[aout]"
+        cmd.extend(["-filter_complex", f"{filter_complex};{audio_filter}"])
+        cmd.extend(["-map", "[vout]", "-map", "[aout]"])
+    else:
+        cmd.extend(["-filter_complex", filter_complex])
+        cmd.extend(["-map", "[vout]", "-map", "1:a"])
+    
+    # Output options
+    cmd.extend([
+        "-c:v", "libx264",
+        "-preset", "faster",
+        "-b:v", "8M",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-t", str(total_len),
+        "-movflags", "+faststart",
+        "-threads", str(min(multiprocessing.cpu_count(), 8)),
+        "-y",  # Overwrite output
+        out_mp4
+    ])
+    
+    logger.debug(f"FFmpeg command: {' '.join(cmd[:10])}... (truncated)")
+    
+    # Run with progress tracking
+    pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
+    
+    try:
+        # Run ffmpeg
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"FFmpeg failed with return code {result.returncode}")
+            logger.error(f"FFmpeg stderr: {result.stderr}")
+            raise RuntimeError(f"FFmpeg failed:\n{result.stderr}")
+        
+        pbar.update(100)
+        logger.info(f"Video rendered successfully: {out_mp4}")
+    except Exception as e:
+        logger.error(f"Failed to render video: {e}")
+        raise
+    finally:
+        pbar.close()
+
+def _render_video_with_static_overlays(
+    background_mp4: str,
+    out_mp4: str,
+    audio_mp3: str,
+    image_paths: List[str],
+    image_durations: List[float],
+    W: int,
+    H: int,
+    screenshot_width: int,
+    opacity: float,
+    total_len: float,
+    bg_audio_mp3: Optional[str] = None,
+    bg_audio_volume: float = 0.0,
+):
+    """Render video with static card overlays (original method)."""
+    logger.info("Rendering with static card overlays")
 
     bg = ffmpeg.input(background_mp4)
     t = 0.0
@@ -170,10 +306,6 @@ def render_video(
     audio = ffmpeg.input(audio_mp3)
     final_audio = merge_background_audio(audio, bg_audio_mp3 or "", bg_audio_volume)
 
-    total_len = max(0.1, sum(max(0.0, d) for d in image_durations))
-    
-    logger.debug(f"Total video length: {total_len:.2f}s")
-
     pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
     def on_update(p: float):
         target = max(0.0, min(100.0, p*100))
@@ -192,12 +324,12 @@ def render_video(
                     f="mp4",
                     vcodec="libx264",
                     acodec="aac",
-                    preset="faster",  # Faster encoding with moderate quality trade-off
-                    video_bitrate="8M",  # Reduced from 20M for faster encoding
+                    preset="faster",
+                    video_bitrate="8M",
                     audio_bitrate="192k",
                     pix_fmt="yuv420p",
                     movflags="+faststart",
-                    threads=min(multiprocessing.cpu_count(), 8),  # Limit to 8 cores to avoid system unresponsiveness
+                    threads=min(multiprocessing.cpu_count(), 8),
                     shortest=None,
                     t=total_len,
                 )

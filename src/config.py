@@ -92,6 +92,27 @@ class BackgroundConfig:
         )
 
 @dataclass
+class WordCaptionsConfig:
+    """Configuration for word-by-word caption animations."""
+    enabled: bool = True  # Enable word-by-word captions (replaces static cards)
+    font_size: int = 60
+    font_color: str = "white"
+    border_color: str = "black"
+    border_width: int = 3
+    y_position_percent: float = 0.70  # Y position as percentage of screen height (0.7 = bottom third)
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "WordCaptionsConfig":
+        return WordCaptionsConfig(
+            enabled=_to_bool(d.get("enabled", True), True),
+            font_size=_to_int(d.get("font_size", 60), 60),
+            font_color=str(d.get("font_color", "white")),
+            border_color=str(d.get("border_color", "black")),
+            border_width=_to_int(d.get("border_width", 3), 3),
+            y_position_percent=_to_float(d.get("y_position_percent", 0.70), 0.70),
+        )
+
+@dataclass
 class VideoDurationConfig:
     mode: str = "short"  # "short" or "long"
     target_duration_seconds: int = 90  # 1-2 minutes default
@@ -118,6 +139,7 @@ class SettingsConfig:
     voice: VoiceConfig = field(default_factory=VoiceConfig)
     background: BackgroundConfig = field(default_factory=BackgroundConfig)
     video_duration: VideoDurationConfig = field(default_factory=VideoDurationConfig)
+    word_captions: WordCaptionsConfig = field(default_factory=WordCaptionsConfig)
 
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> "SettingsConfig":
@@ -130,6 +152,7 @@ class SettingsConfig:
             voice=VoiceConfig.from_dict(d.get("voice", {}) or {}),
             background=BackgroundConfig.from_dict(d.get("background", {}) or {}),
             video_duration=VideoDurationConfig.from_dict(d.get("video_duration", {}) or {}),
+            word_captions=WordCaptionsConfig.from_dict(d.get("word_captions", {}) or {}),
         )
 
 @dataclass
