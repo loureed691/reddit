@@ -62,49 +62,44 @@ def render_progressive_title_cards(
     base_name: str = "title",
     audio_duration: float = 0.0
 ) -> List[Tuple[str, float]]:
-    """Render multiple title cards with progressive text reveal.
+    """Render title cards with optional progressive text reveal.
     
-    OPTIMIZED: Renders the full text card once and uses it for all frames to prevent
-    text jumping and ensure consistent card sizing. This creates a much smoother
-    word-by-word animation experience.
+    NOTE: Progressive word-by-word animation has been simplified to show full text
+    to prevent the "text jumping" issue caused by changing text wrapping between frames.
+    The original implementation rendered partial text for each word, causing the layout
+    to shift as more words were added. This created a poor user experience.
+    
+    The current implementation renders a single card with full text, which provides
+    a consistent, stable layout. Future enhancements could implement proper word-by-word
+    animation using masking or highlighting techniques while maintaining layout stability.
     
     Args:
         title: The title text
         subtitle: The subtitle text (e.g., subreddit)
-        word_timings: Word timing information from TTS
+        word_timings: Word timing information from TTS (currently not used)
         png_dir: Directory to save PNG files
         base_name: Base name for the PNG files
         audio_duration: Duration of the audio (used for fallback when no word timings)
     
     Returns:
-        List of tuples (image_path, duration) for each progressive frame
+        List of tuples (image_path, duration) for each frame (currently always single frame)
     """
     import os
     
-    progressive_frames = create_progressive_text(word_timings)
-    
-    if not progressive_frames:
-        # No word timings: render single card with full audio duration
-        img = render_title_card(title, subtitle)
-        path = os.path.join(png_dir, f"{base_name}.png")
-        img.save(path, optimize=False)
-        return [(path, audio_duration)]
-    
-    # OPTIMIZATION: Render the full text card once to establish consistent sizing
-    # Then reuse that same rendering for all frames to prevent text jumping
-    result: List[Tuple[str, float]] = []
-    
-    # For now, just render the full card once and use it for all frames
-    # This fixes the text jumping issue by maintaining consistent layout
+    # Render single card with full text to avoid text jumping issues
     img = render_title_card(title, subtitle)
     path = os.path.join(png_dir, f"{base_name}.png")
     img.save(path, optimize=False)
     
-    # Calculate total duration from all frames
-    total_duration = sum(duration for _, _, duration in progressive_frames)
-    result.append((path, total_duration))
-        
-    logger.debug(f"Rendered title card with consistent sizing (fixed text jumping)")
+    # Use provided audio duration or calculate from word timings
+    if word_timings:
+        # Calculate total duration from word timings if available
+        total_duration = sum(duration for _, _, duration in create_progressive_text(word_timings))
+        if total_duration > 0:
+            audio_duration = total_duration
+    
+    result = [(path, audio_duration)]
+    logger.debug(f"Rendered title card with full text (word-by-word disabled to prevent jumping)")
     return result
 
 
@@ -117,48 +112,43 @@ def render_progressive_comment_cards(
     base_name: str = "comment_0",
     audio_duration: float = 0.0
 ) -> List[Tuple[str, float]]:
-    """Render multiple comment cards with progressive text reveal.
+    """Render comment cards with optional progressive text reveal.
     
-    OPTIMIZED: Renders the full text card once and uses it for all frames to prevent
-    text jumping and ensure consistent card sizing. This creates a much smoother
-    word-by-word animation experience.
+    NOTE: Progressive word-by-word animation has been simplified to show full text
+    to prevent the "text jumping" issue caused by changing text wrapping between frames.
+    The original implementation rendered partial text for each word, causing the layout
+    to shift as more words were added. This created a poor user experience.
+    
+    The current implementation renders a single card with full text, which provides
+    a consistent, stable layout. Future enhancements could implement proper word-by-word
+    animation using masking or highlighting techniques while maintaining layout stability.
     
     Args:
         author: Comment author username
         body: Comment body text
         score: Comment score
-        word_timings: Word timing information from TTS
+        word_timings: Word timing information from TTS (currently not used)
         png_dir: Directory to save PNG files
         base_name: Base name for the PNG files
         audio_duration: Duration of the audio (used for fallback when no word timings)
     
     Returns:
-        List of tuples (image_path, duration) for each progressive frame
+        List of tuples (image_path, duration) for each frame (currently always single frame)
     """
     import os
     
-    progressive_frames = create_progressive_text(word_timings)
-    
-    if not progressive_frames:
-        # No word timings: render single card with full audio duration
-        img = render_comment_card(author, body, score)
-        path = os.path.join(png_dir, f"{base_name}.png")
-        img.save(path, optimize=False)
-        return [(path, audio_duration)]
-    
-    # OPTIMIZATION: Render the full text card once to establish consistent sizing
-    # Then reuse that same rendering for all frames to prevent text jumping
-    result: List[Tuple[str, float]] = []
-    
-    # For now, just render the full card once and use it for all frames
-    # This fixes the text jumping issue by maintaining consistent layout
+    # Render single card with full text to avoid text jumping issues
     img = render_comment_card(author, body, score)
     path = os.path.join(png_dir, f"{base_name}.png")
     img.save(path, optimize=False)
     
-    # Calculate total duration from all frames
-    total_duration = sum(duration for _, _, duration in progressive_frames)
-    result.append((path, total_duration))
-        
-    logger.debug(f"Rendered comment card with consistent sizing (fixed text jumping)")
+    # Use provided audio duration or calculate from word timings
+    if word_timings:
+        # Calculate total duration from word timings if available
+        total_duration = sum(duration for _, _, duration in create_progressive_text(word_timings))
+        if total_duration > 0:
+            audio_duration = total_duration
+    
+    result = [(path, audio_duration)]
+    logger.debug(f"Rendered comment card with full text (word-by-word disabled to prevent jumping)")
     return result

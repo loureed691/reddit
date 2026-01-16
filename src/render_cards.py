@@ -50,6 +50,13 @@ class CardTheme:
     # Shadow color for depth
     shadow: Tuple[int,int,int,int] = (0, 0, 0, 80)  # ~31% opacity
 
+# Spacing constants for consistent card sizing
+# These provide breathing room around content for better visual presentation
+TITLE_EXTRA_SPACING_WITH_SUBTITLE = 40  # Extra spacing when subtitle is present
+TITLE_EXTRA_SPACING_NO_SUBTITLE = 20    # Extra spacing when no subtitle
+TITLE_BOTTOM_MARGIN = 20                 # Bottom margin for title cards
+COMMENT_EXTRA_SPACING = 30               # Extra spacing for comment cards
+
 @lru_cache(maxsize=32)
 def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
     """Load font with caching to avoid repeated file I/O.
@@ -166,9 +173,9 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     # Calculate height with generous spacing to fit all content
     line_h_title = 68
     line_h_sub = 42
-    # Add extra spacing for visual elements (shadow, border, etc.) and breathing room
-    extra_spacing = 40 if subtitle_lines else 20
-    content_h = theme.padding + len(title_lines)*line_h_title + extra_spacing + len(subtitle_lines)*line_h_sub + theme.padding + 20
+    # Use spacing constants for visual elements (shadow, border, etc.) and breathing room
+    extra_spacing = TITLE_EXTRA_SPACING_WITH_SUBTITLE if subtitle_lines else TITLE_EXTRA_SPACING_NO_SUBTITLE
+    content_h = theme.padding + len(title_lines)*line_h_title + extra_spacing + len(subtitle_lines)*line_h_sub + theme.padding + TITLE_BOTTOM_MARGIN
     H = max(base_h, content_h)
 
     # Create final image with shadow layer for depth
@@ -257,8 +264,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
 
     line_h = 46
     header_h = 120
-    # Add extra spacing for visual elements and breathing room
-    content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding + 30
+    # Use spacing constant for visual elements and breathing room
+    content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding + COMMENT_EXTRA_SPACING
     H = max(base_h, content_h)
 
     # Create final image with shadow for depth
