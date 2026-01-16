@@ -331,7 +331,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     font_body = _load_font(36)
     font_meta = _load_font(26)
 
-    max_text_w = W - 2*theme.padding
+    # Account for indent in body text (padding on both sides + 24px indent)
+    max_text_w = W - 2*theme.padding - 24
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
     line_h = 46
@@ -389,6 +390,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     y += 28
 
     # body with shadow for better readability
+    # Add indent for visual hierarchy and breathing room
+    x = theme.padding + 24
     for line in body_lines[:40]:
         draw.text((x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
         draw.text((x, y), line, font=font_body, fill=theme.text)
