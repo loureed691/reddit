@@ -88,7 +88,7 @@ async def _edge_tts_with_word_timings(text: str, mp3_path: str, opts: TTSOptions
                 
                 if word_text:
                     # Accept all word timings, including those with duration=0
-                    # (which can occur for punctuation, silence, or short words)
+                    # (which can occur for punctuation or silence per Edge-TTS API spec)
                     word_timings.append(WordTiming(
                         text=word_text,
                         offset=offset,
