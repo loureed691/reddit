@@ -5,6 +5,7 @@
     "opacity": 0.92,
     "max_comments": 12,
     "language": "en",
+    "word_by_word_animation": true,
     "voice": {
       "engine": "edge_tts",
       "edge_voice": "en-US-AriaNeural",

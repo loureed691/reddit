@@ -2,8 +2,8 @@
 
 This module coordinates the entire pipeline:
 1. Fetch Reddit thread data
-2. Render title and comment cards as images
-3. Generate TTS audio for each text segment
+2. Render title and comment cards as images (with optional word-by-word animation)
+3. Generate TTS audio for each text segment (capturing word timings when possible)
 4. Create or use background video
 5. Assemble final video with ffmpeg
 
@@ -11,6 +11,7 @@ Optimizations:
 - Caching for fonts and duration probes
 - Optimized PNG compression
 - Better error handling and validation
+- Word-by-word text animation synchronized with TTS audio
 """
 from __future__ import annotations
 import json
@@ -20,7 +21,7 @@ from typing import Any, List, Optional, Tuple
 from ..config import FactoryConfig
 from ..reddit_fetcher import extract_thread_id, fetch_thread, RedditComment
 from ..render_cards import render_title_card, render_comment_card
-from ..tts import tts_to_mp3, TTSOptions
+from ..tts import tts_to_mp3, tts_to_mp3_with_word_timings, TTSOptions
 from ..background import generate_background_mp4
 from ..builder import concat_audio, render_video, probe_duration
 from ..logger import get_logger
@@ -182,15 +183,8 @@ class RedditVideoFactory:
             "comments": [{"author": c.author, "score": c.score, "body": c.body} for c in thread.comments],
         })
 
-        # 1) Render cards
+        # 1) Render cards with word-by-word animation if enabled
         logger.info("Rendering cards...")
-        title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
-        title_png = f"{png_dir}/title.png"
-        # Only optimize PNGs if keeping temp files, otherwise it's wasted time
-        title_img.save(title_png, optimize=keep_temp)
-
-        # 2) TTS for title first to estimate duration
-        logger.info("Generating TTS audio...")
         tts_opts = TTSOptions(
             engine=self.cfg.settings.voice.engine,
             edge_voice=self.cfg.settings.voice.edge_voice,
@@ -198,8 +192,30 @@ class RedditVideoFactory:
             volume=self.cfg.settings.voice.volume,
         )
 
+        # 2) Generate TTS for title with word timings
+        logger.info("Generating TTS audio...")
         title_mp3 = f"{mp3_dir}/title.mp3"
-        tts_to_mp3(thread.title, title_mp3, tts_opts)
+        
+        if self.cfg.settings.word_by_word_animation:
+            # Use word timing capture
+            from ..render_progressive import render_progressive_title_cards
+            title_word_timings = tts_to_mp3_with_word_timings(thread.title, title_mp3, tts_opts)
+            # Generate progressive title cards
+            title_cards_info = render_progressive_title_cards(
+                thread.title,
+                f"r/{thread.subreddit}",
+                title_word_timings,
+                png_dir,
+                "title"
+            )
+        else:
+            # Traditional single card rendering
+            tts_to_mp3(thread.title, title_mp3, tts_opts)
+            title_img = render_title_card(thread.title, f"r/{thread.subreddit}")
+            title_png = f"{png_dir}/title.png"
+            title_img.save(title_png, optimize=keep_temp)
+            title_duration = probe_duration(title_mp3)
+            title_cards_info = [(title_png, title_duration)]
         
         # Estimate how much time we have for comments
         title_duration = probe_duration(title_mp3)
@@ -213,19 +229,41 @@ class RedditVideoFactory:
             )
             selected_comments = []
             comment_mp3s = []
+            all_comment_cards_info = []
         else:
             selected_comments, comment_mp3s = self._select_comments_for_duration(
                 thread.comments, remaining_duration, tts_opts, mp3_dir
             )
-        
-        logger.info(f"Selected {len(selected_comments)} comments for target duration")
-
-        comment_pngs: List[str] = []
-        for i, c in enumerate(selected_comments):
-            img = render_comment_card(c.author, c.body, c.score)
-            p = os.path.join(png_dir, f"comment_{i}.png")
-            img.save(p, optimize=keep_temp)
-            comment_pngs.append(p)
+            
+            logger.info(f"Selected {len(selected_comments)} comments for target duration")
+            
+            # Render comment cards (with or without word-by-word animation)
+            all_comment_cards_info: List[List[Tuple[str, float]]] = []
+            
+            if self.cfg.settings.word_by_word_animation:
+                from ..render_progressive import render_progressive_comment_cards
+                for i, c in enumerate(selected_comments):
+                    mp3_path = comment_mp3s[i]
+                    # Generate TTS with word timings
+                    comment_word_timings = tts_to_mp3_with_word_timings(c.body, mp3_path, tts_opts)
+                    # Generate progressive comment cards
+                    comment_cards = render_progressive_comment_cards(
+                        c.author,
+                        c.body,
+                        c.score,
+                        comment_word_timings,
+                        png_dir,
+                        f"comment_{i}"
+                    )
+                    all_comment_cards_info.append(comment_cards)
+            else:
+                # Traditional single card per comment
+                for i, c in enumerate(selected_comments):
+                    img = render_comment_card(c.author, c.body, c.score)
+                    p = os.path.join(png_dir, f"comment_{i}.png")
+                    img.save(p, optimize=keep_temp)
+                    duration = probe_duration(comment_mp3s[i])
+                    all_comment_cards_info.append([(p, duration)])
 
         # 3) Background
         logger.info("Preparing background...")
@@ -259,8 +297,20 @@ class RedditVideoFactory:
         audio_paths = [title_mp3] + comment_mp3s
         concat_audio(audio_paths, audio_mp3)
 
-        durations = [probe_duration(title_mp3)] + [probe_duration(p) for p in comment_mp3s]
-        images = [title_png] + comment_pngs
+        # Flatten all progressive cards into a single list with durations
+        images: List[str] = []
+        durations: List[float] = []
+        
+        # Add title cards
+        for img_path, dur in title_cards_info:
+            images.append(img_path)
+            durations.append(dur)
+        
+        # Add comment cards
+        for comment_cards in all_comment_cards_info:
+            for img_path, dur in comment_cards:
+                images.append(img_path)
+                durations.append(dur)
 
         out_dir = f"results/{thread.subreddit}"
         _ensure_dir(out_dir)
