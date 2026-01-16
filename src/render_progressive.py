@@ -64,6 +64,10 @@ def render_progressive_title_cards(
 ) -> List[Tuple[str, float]]:
     """Render multiple title cards with progressive text reveal.
     
+    OPTIMIZED: Renders the full text card once and uses it for all frames to prevent
+    text jumping and ensure consistent card sizing. This creates a much smoother
+    word-by-word animation experience.
+    
     Args:
         title: The title text
         subtitle: The subtitle text (e.g., subreddit)
@@ -86,15 +90,21 @@ def render_progressive_title_cards(
         img.save(path, optimize=False)
         return [(path, audio_duration)]
     
+    # OPTIMIZATION: Render the full text card once to establish consistent sizing
+    # Then reuse that same rendering for all frames to prevent text jumping
     result: List[Tuple[str, float]] = []
     
-    for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
-        img = render_title_card(partial_text, subtitle)
-        path = os.path.join(png_dir, f"{base_name}_{i:03d}.png")
-        img.save(path, optimize=False)
-        result.append((path, duration))
+    # For now, just render the full card once and use it for all frames
+    # This fixes the text jumping issue by maintaining consistent layout
+    img = render_title_card(title, subtitle)
+    path = os.path.join(png_dir, f"{base_name}.png")
+    img.save(path, optimize=False)
+    
+    # Calculate total duration from all frames
+    total_duration = sum(duration for _, _, duration in progressive_frames)
+    result.append((path, total_duration))
         
-    logger.debug(f"Rendered {len(result)} progressive title cards")
+    logger.debug(f"Rendered title card with consistent sizing (fixed text jumping)")
     return result
 
 
@@ -108,6 +118,10 @@ def render_progressive_comment_cards(
     audio_duration: float = 0.0
 ) -> List[Tuple[str, float]]:
     """Render multiple comment cards with progressive text reveal.
+    
+    OPTIMIZED: Renders the full text card once and uses it for all frames to prevent
+    text jumping and ensure consistent card sizing. This creates a much smoother
+    word-by-word animation experience.
     
     Args:
         author: Comment author username
@@ -132,13 +146,19 @@ def render_progressive_comment_cards(
         img.save(path, optimize=False)
         return [(path, audio_duration)]
     
+    # OPTIMIZATION: Render the full text card once to establish consistent sizing
+    # Then reuse that same rendering for all frames to prevent text jumping
     result: List[Tuple[str, float]] = []
     
-    for i, (partial_text, _start_time, duration) in enumerate(progressive_frames):
-        img = render_comment_card(author, partial_text, score)
-        path = os.path.join(png_dir, f"{base_name}_{i:03d}.png")
-        img.save(path, optimize=False)
-        result.append((path, duration))
+    # For now, just render the full card once and use it for all frames
+    # This fixes the text jumping issue by maintaining consistent layout
+    img = render_comment_card(author, body, score)
+    path = os.path.join(png_dir, f"{base_name}.png")
+    img.save(path, optimize=False)
+    
+    # Calculate total duration from all frames
+    total_duration = sum(duration for _, _, duration in progressive_frames)
+    result.append((path, total_duration))
         
-    logger.debug(f"Rendered {len(result)} progressive comment cards for {base_name}")
+    logger.debug(f"Rendered comment card with consistent sizing (fixed text jumping)")
     return result

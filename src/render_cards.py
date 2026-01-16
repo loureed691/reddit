@@ -145,6 +145,7 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     - Larger, more prominent text
     - Gradient accent bar with glow effect
     - Better spacing and visual hierarchy
+    - Properly sized to fit all text content
     """
     theme = CardTheme()
     W = theme.card_w
@@ -162,10 +163,12 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with better spacing
+    # Calculate height with generous spacing to fit all content
     line_h_title = 68
     line_h_sub = 42
-    content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
+    # Add extra spacing for visual elements (shadow, border, etc.) and breathing room
+    extra_spacing = 40 if subtitle_lines else 20
+    content_h = theme.padding + len(title_lines)*line_h_title + extra_spacing + len(subtitle_lines)*line_h_sub + theme.padding + 20
     H = max(base_h, content_h)
 
     # Create final image with shadow layer for depth
@@ -212,13 +215,15 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     x = theme.padding + 32
     y = theme.padding
     
-    for line in title_lines[:10]:
+    # Render all title lines (no artificial limit)
+    for line in title_lines:
         draw.text((x, y), line, font=font_title, fill=theme.text)
         y += line_h_title
 
     if subtitle_lines:
         y += 16
-        for line in subtitle_lines[:6]:
+        # Render all subtitle lines (no artificial limit)
+        for line in subtitle_lines:
             draw.text((x, y), line, font=font_sub, fill=theme.muted)
             y += line_h_sub
 
@@ -233,6 +238,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     - Visual icons and separators
     - Score badge with gradient background
     - Author highlighting
+    - Properly sized to fit all text content
     """
     theme = CardTheme()
     W = theme.card_w
@@ -251,7 +257,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
 
     line_h = 46
     header_h = 120
-    content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
+    # Add extra spacing for visual elements and breathing room
+    content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding + 30
     H = max(base_h, content_h)
 
     # Create final image with shadow for depth
@@ -322,7 +329,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     y += 28
 
     # Body text with enhanced spacing
-    for line in body_lines[:40]:
+    # Render all body lines (no artificial limit)
+    for line in body_lines:
         draw.text((x, y), line, font=font_body, fill=theme.text)
         y += line_h
 
