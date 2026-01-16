@@ -173,11 +173,11 @@ The enhanced zoompan filter uses several mathematical functions:
 ## Expected Impact
 
 ### Viewer Engagement
-Based on viral content analysis and industry best practices:
-- **Retention**: 10-20% improvement in average watch time expected
-- **CTR**: Higher click-through rates due to more appealing thumbnails
-- **Shares**: Potentially 15-25% increase in share rates
-- **Algorithm Performance**: Better reach due to improved retention signals
+Based on viral content analysis and industry best practices, we anticipate that these optimizations can improve engagement metrics, but actual impact will vary by channel and content:
+- **Retention**: Targeting a 10-20% improvement in average watch time (aspirational range based on viral content analysis; not guaranteed)
+- **CTR**: Likely to support higher click-through rates due to more appealing thumbnails (directional expectation, not a guaranteed outcome)
+- **Shares**: Targeting a potential 15-25% increase in share rates (aspirational range based on viral content analysis; not guaranteed)
+- **Algorithm Performance**: May support better reach due to improved retention signals, but platform outcomes are not guaranteed
 
 ### Platform-Specific Benefits
 

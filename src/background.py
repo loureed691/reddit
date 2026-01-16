@@ -44,23 +44,25 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
     """
     W, H = size
     
+    # Viral color schemes - more vibrant and engaging than dark noise
+    # These colors perform better on short-form video platforms
+    # Select color scheme outside numpy conditional for consistent behavior
+    color_schemes = [
+        # Purple-Pink gradient (trending on TikTok)
+        [(75, 0, 130), (255, 20, 147)],  # Deep purple to hot pink
+        # Blue-Cyan gradient (clean, modern)
+        [(0, 30, 100), (0, 180, 216)],   # Dark blue to cyan
+        # Orange-Red gradient (high energy)
+        [(255, 69, 0), (220, 20, 60)],   # Red-orange to crimson
+        # Teal-Green gradient (calming but vibrant)
+        [(0, 128, 128), (34, 139, 34)],  # Teal to forest green
+        # Violet-Blue gradient (mysterious, engaging)
+        [(138, 43, 226), (65, 105, 225)], # Blue-violet to royal blue
+    ]
+    
+    color1, color2 = random.choice(color_schemes)
+    
     if HAS_NUMPY:
-        # Viral color schemes - more vibrant and engaging than dark noise
-        # These colors perform better on short-form video platforms
-        color_schemes = [
-            # Purple-Pink gradient (trending on TikTok)
-            [(75, 0, 130), (255, 20, 147)],  # Deep purple to hot pink
-            # Blue-Cyan gradient (clean, modern)
-            [(0, 30, 100), (0, 180, 216)],   # Dark blue to cyan
-            # Orange-Red gradient (high energy)
-            [(255, 69, 0), (220, 20, 60)],   # Red-orange to crimson
-            # Teal-Green gradient (calming but vibrant)
-            [(0, 128, 128), (34, 139, 34)],  # Teal to forest green
-            # Violet-Blue gradient (mysterious, engaging)
-            [(138, 43, 226), (65, 105, 225)], # Blue-violet to royal blue
-        ]
-        
-        color1, color2 = random.choice(color_schemes)
         
         if style == "gradient":
             # Diagonal gradient - more dynamic than vertical/horizontal
@@ -100,14 +102,12 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
         img = Image.fromarray(arr, mode="RGB")
     else:
         # Fallback to slow method if numpy not available
-        # Use simple gradient approximation
+        # Use gradient approximation with same randomly selected colors
         img = Image.new("RGB", (W, H))
         px = img.load()
         
         if style in ["gradient", "radial"]:
-            # Simplified gradient for fallback
-            color1 = (75, 0, 130)
-            color2 = (255, 20, 147)
+            # Use the same randomly selected color scheme for consistency
             for y in range(H):
                 blend = y / H
                 r = int(color1[0] * (1-blend) + color2[0] * blend)

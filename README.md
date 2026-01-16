@@ -233,7 +233,7 @@ Three background styles are available, configurable in `config.json`:
 
 The background features a sinusoidal zoom/pan effect that creates a subtle "breathing" motion:
 - Non-linear movement feels more organic than linear zoom
-- Oscillates smoothly between 1.0x and 1.3x zoom
+- Zoom is computed as `z = 1.15 + 0.15 * sin(on/{fps}/2)`, which evaluates to a smooth oscillation between 1.0x (1.15 - 0.15) and 1.3x (1.15 + 0.15)
 - Gentle side-to-side motion (20px radius)
 - Proven to retain attention better in viral content analysis
 

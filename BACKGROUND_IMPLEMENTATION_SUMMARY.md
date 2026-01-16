@@ -18,12 +18,12 @@ Replaced the simple `generate_noise_image()` with a more sophisticated gradient 
   - Orange-Red (high energy)
   - Teal-Green (calming but vibrant)
   - Violet-Blue (mysterious, engaging)
-- 66x smaller file size than noise (51KB vs 3.4MB)
+- PNG source image ~66x smaller than noise (51KB vs 3.4MB); final H.264 background video is only ~5-10% smaller than noise
 
 **Radial Style**
 - Center-focused gradient that draws eye to middle
 - Perfect for story-telling content
-- 17x smaller file size than noise (198KB vs 3.4MB)
+- PNG source image ~17x smaller than noise (198KB vs 3.4MB); final H.264 background video is only ~5-10% smaller than noise
 
 **Noise Style (Enhanced)**
 - Updated version of original with brighter colors
@@ -110,14 +110,15 @@ Comprehensive 400+ line documentation covering:
 ## Technical Performance
 
 ### File Size Optimization
-- **Gradient**: 51KB (66x smaller than noise)
-- **Radial**: 198KB (17x smaller than noise)
-- **Noise**: 3.4MB (baseline)
+- **Gradient PNG source**: 51KB (66x smaller than noise PNG)
+- **Radial PNG source**: 198KB (17x smaller than noise PNG)
+- **Noise PNG source**: 3.4MB (baseline)
 
-Gradient compression benefits:
-- Smooth color transitions compress better in H.264
-- Reduced file sizes without quality loss
-- Faster upload/download for viral distribution
+PNG source image benefits:
+- Gradient/radial images are dramatically smaller as intermediate files
+- Final H.264 video: gradients compress ~5-10% better than noise
+- Faster temporary file I/O during generation
+- Reduced disk space for intermediate files
 
 ### Processing Speed
 - No performance degradation
@@ -132,22 +133,22 @@ Gradient compression benefits:
 
 ## Expected Impact
 
-Based on viral content analysis and platform best practices:
+Based on viral content analysis and platform best practices, we anticipate that these optimizations can improve engagement metrics, but actual impact will vary by channel and content:
 
 ### Viewer Engagement
-- **Retention**: 10-20% improvement expected
-- **Watch Time**: Higher average duration
-- **Completion Rate**: More viewers watch to end
+- **Retention**: Targeting a 10-20% improvement in average watch time (aspirational range based on viral content analysis; not guaranteed)
+- **Watch Time**: Higher average duration (directional expectation)
+- **Completion Rate**: More viewers may watch to end (not guaranteed)
 
 ### Social Metrics
-- **Shares**: 15-25% increase potential
-- **Likes**: Higher engagement rates
-- **Comments**: More viewer interaction
+- **Shares**: Targeting a potential 15-25% increase (aspirational range; not guaranteed)
+- **Likes**: Likely to support higher engagement rates (directional expectation)
+- **Comments**: May increase viewer interaction (not guaranteed)
 
 ### Algorithm Performance
-- **Reach**: Better distribution due to retention
-- **For You Page**: Higher likelihood of FYP placement
-- **Recommendations**: Improved algorithm signals
+- **Reach**: May support better distribution due to retention (platform outcomes not guaranteed)
+- **For You Page**: Higher likelihood of FYP placement (aspirational, not guaranteed)
+- **Recommendations**: May improve algorithm signals (directional expectation)
 
 ## Testing Results
 
