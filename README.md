@@ -6,10 +6,13 @@ No magic, no hidden utils folder. Just files.
 
 ## Features
 
+- **✨ NEW: Word-by-Word Caption Sync**: Text appears word-by-word synchronized with spoken audio (TikTok/Shorts style)
 - **Fully Automated Mode**: Automatically search for suitable Reddit posts and produce videos
 - **Duplicate Prevention**: Tracks produced videos to avoid creating duplicates
 - **Configurable Video Lengths**: Create short (1-2 minutes) or long (60 minutes) videos
 - **Manual or Auto Mode**: Run with specific URLs or let it find posts automatically
+- **Viral-Optimized TTS**: Fast, engaging voice (en-US-AriaNeural at 1.12x speed)
+- **Dynamic Backgrounds**: Gradient animations optimized for mobile viewing
 
 ## What you need installed
 
@@ -66,6 +69,23 @@ Temp files (for debugging):
 
 Edit `config.json` to customize:
 
+### Word-by-Word Caption Settings (NEW!)
+
+Enable viral-style word-by-word text animation that syncs with spoken audio:
+
+```json
+"word_captions": {
+  "enabled": true,                      // Enable word-by-word captions (replaces static cards)
+  "font_size": 60,                      // Font size for captions
+  "font_color": "white",                // Text color (ffmpeg color name or hex)
+  "border_color": "black",              // Outline/border color
+  "border_width": 3,                    // Border width in pixels
+  "y_position_percent": 0.70            // Y position (0.7 = bottom third of screen)
+}
+```
+
+**Note:** Word-by-word captions require `edge-tts` with internet connectivity. If edge-tts is unavailable, the system falls back to static card overlays automatically.
+
 ### Video Duration Settings
 
 ```json
@@ -120,7 +140,8 @@ Edit `config.json` to customize:
    - Default: `edge-tts` (best quality, needs internet)
    - Voice: `en-US-AriaNeural` (optimized for viral content)
    - Rate: `+12%` (1.12x speed for better engagement)
-   - Fallback: `pyttsx3` (offline, robotic)
+   - **NEW:** Extracts word-level timestamps for caption sync
+   - Fallback: `pyttsx3` (offline, robotic, no word timestamps)
 6. **Background**:
    - If you pass `--background`, it uses that
    - Else it generates a viral-optimized animated background:
@@ -130,7 +151,8 @@ Edit `config.json` to customize:
      - Optimized for TikTok, YouTube Shorts, Instagram Reels engagement
 7. **Merge**:
    - Concatenate audio clips
-   - Overlay cards on background in sync with audio duration
+   - **NEW:** If word captions enabled, apply word-by-word text overlays synchronized with audio
+   - Otherwise, overlay static cards on background in sync with audio duration
    - Encode `libx264 + aac` MP4, `yuv420p`, `faststart`
 8. **Track** (Auto mode): Mark video as produced to prevent duplicates
 
