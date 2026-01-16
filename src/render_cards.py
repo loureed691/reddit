@@ -19,7 +19,7 @@ from functools import lru_cache
 
 @dataclass
 class CardTheme:
-    card_w: int = 900
+    card_w: int = 1000
     padding: int = 48
     radius: int = 32
     bg: Tuple[int,int,int,int] = (18, 18, 22, 235)
@@ -102,16 +102,16 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    font_title = _load_font(50)
-    font_sub = _load_font(28)
+    font_title = _load_font(58)
+    font_sub = _load_font(34)
 
     max_text_w = W - 2*theme.padding
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
     # estimate height
-    line_h_title = 60
-    line_h_sub = 36
+    line_h_title = 70
+    line_h_sub = 42
     content_h = theme.padding + len(title_lines)*line_h_title + (24 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -150,15 +150,15 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    font_author = _load_font(30)
-    font_body = _load_font(32)
-    font_meta = _load_font(24)
+    font_author = _load_font(36)
+    font_body = _load_font(38)
+    font_meta = _load_font(28)
 
     max_text_w = W - 2*theme.padding
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 42
-    header_h = 110
+    line_h = 50
+    header_h = 120
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
 
