@@ -25,6 +25,10 @@ from .logger import get_logger
 
 logger = get_logger(__name__)
 
+# Timeout configuration for ffmpeg subprocess
+TIMEOUT_OVERHEAD_SECONDS = 300  # 5 minutes base overhead
+TIMEOUT_MINUTES_PER_VIDEO_MINUTE = 10  # 10 minutes processing time per minute of video
+
 class ProgressFfmpeg(threading.Thread):
     """Background thread to track ffmpeg progress via progress file.
     
@@ -410,8 +414,8 @@ def _render_video_with_script(
                 logger.debug(f"Running ffmpeg with {len(cmd)} arguments")
                 
                 # Run ffmpeg with a reasonable timeout
-                # Timeout is 10 minutes per minute of video + 5 minutes overhead
-                timeout_seconds = 300 + int((total_len / 60) * 600)
+                # Timeout is TIMEOUT_MINUTES_PER_VIDEO_MINUTE per minute of video + TIMEOUT_OVERHEAD_SECONDS
+                timeout_seconds = TIMEOUT_OVERHEAD_SECONDS + int((total_len / 60) * TIMEOUT_MINUTES_PER_VIDEO_MINUTE * 60)
                 try:
                     result = subprocess.run(
                         cmd,
