@@ -85,6 +85,9 @@ class CardTheme:
     card_w: int = 920  # Card width optimized for 1080px vertical video
     padding: int = 56  # Internal padding for content breathing room
     radius: int = 40   # Corner radius for modern aesthetic
+    # Text indentation values for visual hierarchy
+    title_text_indent: int = 32  # Indent for title text (accounts for accent bar)
+    comment_body_indent: int = 24  # Indent for comment body text
     # Modern glassmorphism - semi-transparent dark with blur effect simulation
     bg: Tuple[int,int,int,int] = (15, 15, 20, 245)  # ~96% opacity for depth
     # Gradient border with higher opacity for premium look
@@ -239,7 +242,8 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     font_title = _load_font(56)
     font_sub = _load_font(32)
 
-    max_text_w = W - 2*theme.padding - 40  # Extra margin for accent bar
+    # Account for text indentation in wrapping calculation
+    max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
@@ -290,7 +294,7 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
                           radius=8, fill=theme.accent_gradient)
 
     # Draw text with enhanced positioning
-    x = theme.padding + 32
+    x = theme.padding + theme.title_text_indent
     y = theme.padding
     
     for line in title_lines[:10]:
@@ -331,8 +335,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     font_body = _load_font(36)
     font_meta = _load_font(26)
 
-    # Account for indent in body text (padding on both sides + 24px indent)
-    max_text_w = W - 2*theme.padding - 24
+    # Account for indent in body text wrapping calculation
+    max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
     line_h = 46
@@ -391,7 +395,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
 
     # body with shadow for better readability
     # Add indent for visual hierarchy and breathing room
-    x = theme.padding + 24
+    x = theme.padding + theme.comment_body_indent
     for line in body_lines[:40]:
         draw.text((x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
         draw.text((x, y), line, font=font_body, fill=theme.text)
