@@ -75,7 +75,7 @@ class CardTheme:
     
     Dimensions are optimized for vertical video with 920px effective width:
     - card_w: 920px - matches screen width to prevent scaling down
-    - padding: 45px - balanced for optimal text space on smaller card
+    - padding: 45px - balanced for optimal text space (reduced from 70px original)
     - radius: 40px creates modern rounded corners without being excessive
     
     Colors chosen for:
@@ -347,7 +347,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     draw = ImageDraw.Draw(temp_img)
 
     # Large font sizes for excellent readability at 920px card width
-    font_author = _load_font(44)
+    font_author = _load_font(46)
     font_body = _load_font(50)
     font_meta = _load_font(36)
 
