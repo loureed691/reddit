@@ -120,7 +120,10 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
         "assets/fonts/Inter-Regular.ttf",
         "assets/fonts/Roboto-Regular.ttf",
         # Symbola has excellent emoji support (monochrome, works with Pillow)
+        # Check multiple possible locations for Symbola
         "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
+        "/usr/share/fonts/truetype/Symbola.ttf",
+        "/usr/share/fonts/TTF/Symbola.ttf",
         # Windows emoji fonts
         "C:/Windows/Fonts/seguiemj.ttf",  # Segoe UI Emoji
         "C:/Windows/Fonts/segoeui.ttf",   # Segoe UI (has emoji fallback)
@@ -136,8 +139,7 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
         try:
             if os.path.exists(p):
                 font = ImageFont.truetype(p, size)
-                # Verify the font can render basic emoji by checking if it has glyph coverage
-                # We'll use it if it loads successfully
+                # Font loaded successfully - return it for use
                 return font
         except Exception:
             pass
