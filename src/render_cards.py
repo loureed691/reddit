@@ -83,14 +83,14 @@ class CardTheme:
     - Premium glassmorphism aesthetic (semi-transparent with gradient borders)
     - Mobile readability (sufficient contrast ratios)
     """
-    card_w: int = 1050  # Card width increased for better readability
-    padding: int = 45   # Internal padding for balanced spacing
+    card_w: int = 1050  # Card width for readability
+    padding: int = 30   # Reduced padding to fit large fonts in video height
     radius: int = 40    # Corner radius for modern aesthetic
     # Text indentation values for visual hierarchy
     title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
     comment_body_indent: int = 24  # Indent for comment body text
-    # Modern glassmorphism - semi-transparent dark with blur effect simulation
-    bg: Tuple[int,int,int,int] = (15, 15, 20, 245)  # ~96% opacity for depth
+    # Modern glassmorphism - much lighter background for maximum text contrast and readability
+    bg: Tuple[int,int,int,int] = (45, 50, 60, 250)  # Significantly lighter background for better mobile readability
     # Gradient border with higher opacity for premium look
     border: Tuple[int,int,int,int] = (255, 255, 255, 60)
     border_gradient_start: Tuple[int,int,int,int] = (138, 180, 248, 180)  # Soft blue
@@ -253,19 +253,19 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Large fonts for maximum mobile readability (96px title, 58px subtitle)
-    # Combined with reduced padding (45px) for maximum content area
-    font_title = _load_font(96)
-    font_sub = _load_font(58)
+    # Massive fonts - text should fill most of the card
+    # 500px title font produces ~390px tall text (20% of screen)
+    font_title = _load_font(500)
+    font_sub = _load_font(300)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with improved line spacing (~1.3x font size)
-    line_h_title = 125  # Line height for 96px font (≈1.30 ratio)
-    line_h_sub = 76    # Line height for 58px font (≈1.31 ratio)
+    # Tighter line spacing (1.15x) to fit massive fonts
+    line_h_title = 575  # Line height for 500px font (1.15 ratio)
+    line_h_sub = 345    # Line height for 300px font (1.15 ratio)
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -314,16 +314,16 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     y = theme.padding
     
     for line in title_lines[:10]:
-        # Add subtle text shadow for better mobile readability
-        draw.text((x+2, y+2), line, font=font_title, fill=(0, 0, 0, 180))
+        # Add strong text shadow for maximum mobile readability
+        draw.text((x+4, y+4), line, font=font_title, fill=(0, 0, 0, 220))
         draw.text((x, y), line, font=font_title, fill=theme.text)
         y += line_h_title
 
     if subtitle_lines:
         y += 16
         for line in subtitle_lines[:6]:
-            # Add subtle shadow to subtitle too
-            draw.text((x+1, y+1), line, font=font_sub, fill=(0, 0, 0, 120))
+            # Add strong shadow to subtitle too
+            draw.text((x+3, y+3), line, font=font_sub, fill=(0, 0, 0, 200))
             draw.text((x, y), line, font=font_sub, fill=theme.muted)
             y += line_h_sub
 
@@ -347,17 +347,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Large fonts for maximum mobile readability (52px author, 64px body, 38px meta)
-    # Combined with reduced padding (45px) for maximum content area
-    font_author = _load_font(52)
-    font_body = _load_font(64)
-    font_meta = _load_font(38)
+    # Massive fonts - text should fill the card (330px produces ~257px tall text)
+    font_author = _load_font(270)
+    font_body = _load_font(330)
+    font_meta = _load_font(200)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 83  # Line height for 64px font (improved readability, ≈1.30 ratio)
+    line_h = 380  # Line height for 330px font (1.15 ratio)
     header_h = 130
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -381,15 +380,15 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
                          theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # author row with shadow
+    # author row with strong shadow for readability
     x = theme.padding
     y = theme.padding
-    draw.text((x+2, y+2), author, font=font_author, fill=(0, 0, 0, 180))
+    draw.text((x+3, y+3), author, font=font_author, fill=(0, 0, 0, 220))
     draw.text((x, y), author, font=font_author, fill=theme.text)
     meta = f"score {score}"
     bbox = draw.textbbox((0,0), meta, font=font_meta)
     meta_x = W-theme.padding-(bbox[2]-bbox[0])
-    draw.text((meta_x+1, y+7), meta, font=font_meta, fill=(0, 0, 0, 120))
+    draw.text((meta_x+2, y+8), meta, font=font_meta, fill=(0, 0, 0, 200))
     draw.text((meta_x, y+6), meta, font=font_meta, fill=theme.muted)
 
     # Enhanced divider with gradient (optimized for performance)
@@ -411,11 +410,11 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     
     y += 28
 
-    # body with shadow for better readability
+    # body with strong shadow for maximum readability
     # Add indent for visual hierarchy and breathing room
     body_x = theme.padding + theme.comment_body_indent
     for line in body_lines[:40]:
-        draw.text((body_x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
+        draw.text((body_x+3, y+3), line, font=font_body, fill=(0, 0, 0, 220))
         draw.text((body_x, y), line, font=font_body, fill=theme.text)
         y += line_h
 
@@ -438,10 +437,9 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Large CTA fonts for maximum visual impact and readability (86px main, 58px sub)
-    # Combined with reduced padding (45px) for maximum engagement
-    font_main = _load_font(86)
-    font_sub = _load_font(58)
+    # Massive CTA fonts
+    font_main = _load_font(450)
+    font_sub = _load_font(300)
     
     y = 120
     
@@ -459,8 +457,8 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
         text_w = bbox[2] - bbox[0]
         x = (W - text_w) // 2
         
-        # Add shadow
-        draw.text((x+3, y+3), text, font=font_main, fill=(0, 0, 0, 180))
+        # Add strong shadow for readability
+        draw.text((x+4, y+4), text, font=font_main, fill=(0, 0, 0, 230))
         draw.text((x, y), text, font=font_main, fill=color)
         y += line_height
     
@@ -469,7 +467,7 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     bbox = draw.textbbox((0, 0), bottom_text, font=font_sub)
     text_w = bbox[2] - bbox[0]
     x = (W - text_w) // 2
-    draw.text((x+2, y+2), bottom_text, font=font_sub, fill=(0, 0, 0, 120))
+    draw.text((x+3, y+3), bottom_text, font=font_sub, fill=(0, 0, 0, 200))
     draw.text((x, y), bottom_text, font=font_sub, fill=theme.muted)
     
     return img
