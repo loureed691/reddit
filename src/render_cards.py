@@ -143,31 +143,6 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
             pass
     return ImageFont.load_default()
 
-@lru_cache(maxsize=32)
-def _load_emoji_font(size: int) -> Optional[ImageFont.FreeTypeFont]:
-    """Load an emoji-specific font with caching.
-    
-    Returns None if no emoji font is available.
-    This font is used as a fallback for emoji characters.
-    """
-    emoji_fonts = [
-        # Windows
-        "C:/Windows/Fonts/seguiemj.ttf",  # Segoe UI Emoji - best for Windows
-        # Linux
-        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
-        "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
-        # macOS
-        "/System/Library/Fonts/Apple Color Emoji.ttc",
-        "/Library/Fonts/Arial Unicode.ttf",
-    ]
-    for p in emoji_fonts:
-        try:
-            if os.path.exists(p):
-                return ImageFont.truetype(p, size)
-        except Exception:
-            pass
-    return None
-
 def _rounded_rectangle(draw: ImageDraw.ImageDraw, xy, radius, fill, outline=None, width=1):
     # Pillow >= 9 supports rounded_rectangle
     draw.rounded_rectangle(xy, radius=radius, fill=fill, outline=outline, width=width)
