@@ -11,6 +11,7 @@ from __future__ import annotations
 import multiprocessing
 import os
 import re
+import subprocess
 import tempfile
 import threading
 import time
@@ -23,6 +24,10 @@ from tqdm import tqdm
 from .logger import get_logger
 
 logger = get_logger(__name__)
+
+# Timeout configuration for ffmpeg subprocess
+TIMEOUT_OVERHEAD_SECONDS = 300  # 5 minutes base overhead
+TIMEOUT_MINUTES_PER_VIDEO_MINUTE = 10  # 10 minutes processing time per minute of video
 
 class ProgressFfmpeg(threading.Thread):
     """Background thread to track ffmpeg progress via progress file.
@@ -123,6 +128,31 @@ def merge_background_audio(audio_stream, bg_mp3: str, bg_volume: float):
     bg = ffmpeg.input(bg_mp3).filter("volume", bg_volume)
     return ffmpeg.filter([audio_stream, bg], "amix", duration="longest")
 
+def _append_audio_filter_to_script(
+    filter_lines: List[str],
+    bg_audio_mp3: Optional[str],
+    bg_audio_volume: float,
+    main_audio_label: str,
+    bg_audio_idx: int,
+) -> None:
+    """
+    Append background-audio mixing filters to the filter graph.
+
+    This centralizes the logic for combining the primary audio stream
+    with an optional background audio track, ensuring consistency
+    across different rendering modes.
+    """
+    if bg_audio_mp3 and exists(bg_audio_mp3) and bg_audio_volume > 0:
+        # Background audio will be the last input
+        filter_lines.append(
+            f"[{bg_audio_idx}:a]volume={bg_audio_volume}[bg_audio]"
+        )
+        filter_lines.append(
+            f"{main_audio_label}[bg_audio]amix=duration=longest[aout]"
+        )
+    else:
+        filter_lines.append(f"{main_audio_label}anull[aout]")
+
 def render_video(
     background_mp4: str,
     out_mp4: str,
@@ -139,6 +169,7 @@ def render_video(
     """Render final video with overlays and audio.
     
     Optimized with better ffmpeg presets and parallel processing.
+    Uses filter_complex_script for many images to avoid Windows command line length limits.
     """
     if len(image_paths) != len(image_durations):
         raise ValueError("image_paths and image_durations mismatch")
@@ -149,6 +180,38 @@ def render_video(
     logger.info(f"Rendering video: {len(image_paths)} images, resolution {W}x{H}")
     logger.debug(f"Output: {out_mp4}")
 
+    # Use filter_complex_script approach when there are many images to avoid
+    # Windows command line length limits (32,767 characters)
+    USE_FILTER_SCRIPT_THRESHOLD = 50
+    use_filter_script = len(image_paths) > USE_FILTER_SCRIPT_THRESHOLD
+    
+    if use_filter_script:
+        logger.debug(f"Using filter_complex_script approach ({len(image_paths)} images)")
+        _render_video_with_script(
+            background_mp4, out_mp4, audio_mp3, image_paths, image_durations,
+            W, H, screenshot_width, opacity, bg_audio_mp3, bg_audio_volume
+        )
+    else:
+        logger.debug(f"Using standard overlay approach ({len(image_paths)} images)")
+        _render_video_standard(
+            background_mp4, out_mp4, audio_mp3, image_paths, image_durations,
+            W, H, screenshot_width, opacity, bg_audio_mp3, bg_audio_volume
+        )
+
+def _render_video_standard(
+    background_mp4: str,
+    out_mp4: str,
+    audio_mp3: str,
+    image_paths: List[str],
+    image_durations: List[float],
+    W: int,
+    H: int,
+    screenshot_width: int,
+    opacity: float,
+    bg_audio_mp3: Optional[str] = None,
+    bg_audio_volume: float = 0.0,
+):
+    """Standard rendering using ffmpeg-python overlay chaining."""
     bg = ffmpeg.input(background_mp4)
     t = 0.0
 
@@ -218,3 +281,183 @@ def render_video(
             if pbar.n < 100:
                 pbar.update(100 - pbar.n)
             pbar.close()
+
+def _render_video_with_script(
+    background_mp4: str,
+    out_mp4: str,
+    audio_mp3: str,
+    image_paths: List[str],
+    image_durations: List[float],
+    W: int,
+    H: int,
+    screenshot_width: int,
+    opacity: float,
+    bg_audio_mp3: Optional[str] = None,
+    bg_audio_volume: float = 0.0,
+):
+    """Rendering using filter_complex_script to avoid command line length limits.
+    
+    This approach writes the complex filter graph to a temporary file and uses
+    -filter_complex_script to reference it, avoiding Windows command line length limits.
+    """
+    total_len = max(0.1, sum(max(0.0, d) for d in image_durations))
+    
+    # Build the filter complex script
+    filter_lines = []
+    
+    # Background input is [0:v]
+    # Audio input will be [1:a] 
+    # Images are [2:v], [3:v], etc.
+    
+    current_stream = "[0:v]"
+    t = 0.0
+    
+    for i, (_, dur) in enumerate(zip(image_paths, image_durations)):
+        img_idx = i + 2  # Background is 0, audio is 1, images start at 2
+        
+        # Scale the image
+        scaled_label = f"[img{i}scaled]"
+        filter_lines.append(f"[{img_idx}:v]scale={screenshot_width}:-1{scaled_label}")
+        
+        # Apply opacity if not the first image (title)
+        if i != 0:
+            opaque_label = f"[img{i}opaque]"
+            filter_lines.append(f"{scaled_label}colorchannelmixer=aa={opacity}{opaque_label}")
+            overlay_input = opaque_label
+        else:
+            overlay_input = scaled_label
+        
+        # Overlay on the current stream
+        overlay_output = f"[overlay{i}]"
+        start_time = t
+        end_time = t + dur
+        filter_lines.append(
+            f"{current_stream}{overlay_input}overlay="
+            f"x=(main_w-overlay_w)/2:y=(main_h-overlay_h)/2:"
+            f"enable='between(t,{start_time},{end_time})'{overlay_output}"
+        )
+        
+        current_stream = overlay_output
+        t += dur
+    
+    # Final scale
+    filter_lines.append(f"{current_stream}scale={W}:{H}[vout]")
+    
+    # Audio handling
+    bg_audio_idx = len(image_paths) + 2
+    _append_audio_filter_to_script(
+        filter_lines=filter_lines,
+        bg_audio_mp3=bg_audio_mp3,
+        bg_audio_volume=bg_audio_volume,
+        main_audio_label="[1:a]",
+        bg_audio_idx=bg_audio_idx,
+    )
+    
+    # Write filter script to temporary file
+    # Use mkstemp for better security and control
+    filter_script_fd, filter_script_path = tempfile.mkstemp(suffix=".txt", text=True)
+    try:
+        with os.fdopen(filter_script_fd, 'w', encoding='utf-8') as f:
+            f.write(";\n".join(filter_lines))
+        
+        logger.debug(f"Filter script written to: {filter_script_path}")
+        logger.debug(f"Filter script size: {os.path.getsize(filter_script_path)} bytes")
+        
+        pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
+        def on_update(p: float):
+            target = max(0.0, min(100.0, p*100))
+            delta = target - pbar.n
+            if delta > 0:
+                pbar.update(delta)
+        
+        with ProgressFfmpeg(total_len, on_update) as prog:
+            try:
+                # Build ffmpeg command manually
+                cmd = ["ffmpeg"]
+                
+                # Add inputs
+                cmd.extend(["-i", background_mp4])
+                cmd.extend(["-i", audio_mp3])
+                for img_path in image_paths:
+                    cmd.extend(["-i", img_path])
+                
+                # Add background audio if present
+                if bg_audio_mp3 and exists(bg_audio_mp3) and bg_audio_volume > 0:
+                    cmd.extend(["-i", bg_audio_mp3])
+                
+                # Add filter script
+                cmd.extend(["-filter_complex_script", filter_script_path])
+                
+                # Map outputs
+                cmd.extend(["-map", "[vout]", "-map", "[aout]"])
+                
+                # Output settings
+                cmd.extend([
+                    "-f", "mp4",
+                    "-c:v", "libx264",
+                    "-c:a", "aac",
+                    "-preset", "faster",
+                    "-b:v", "8M",
+                    "-b:a", "192k",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    "-threads", str(min(multiprocessing.cpu_count(), 8)),
+                    "-t", str(total_len),
+                    "-shortest",
+                    "-y",  # Overwrite output
+                    "-progress", prog.progress_path,
+                    "-nostats",
+                    "-loglevel", "error",
+                    out_mp4
+                ])
+                
+                logger.debug(f"Running ffmpeg with {len(cmd)} arguments")
+                
+                # Run ffmpeg with a reasonable timeout
+                # Timeout is TIMEOUT_MINUTES_PER_VIDEO_MINUTE per minute of video + TIMEOUT_OVERHEAD_SECONDS
+                timeout_seconds = TIMEOUT_OVERHEAD_SECONDS + int((total_len / 60) * TIMEOUT_MINUTES_PER_VIDEO_MINUTE * 60)
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=False,
+                        timeout=timeout_seconds
+                    )
+                except subprocess.TimeoutExpired as e:
+                    # Decode any available stderr/stdout for logging
+                    stderr_msg = None
+                    stdout_msg = None
+                    if e.stderr:
+                        try:
+                            stderr_msg = e.stderr.decode("utf8", errors="ignore")
+                        except Exception:
+                            stderr_msg = "<failed to decode stderr>"
+                    if e.stdout:
+                        try:
+                            stdout_msg = e.stdout.decode("utf8", errors="ignore")
+                        except Exception:
+                            stdout_msg = "<failed to decode stdout>"
+                    logger.error(
+                        f"ffmpeg timed out after {timeout_seconds} seconds. "
+                        f"stderr: {stderr_msg!r}, stdout: {stdout_msg!r}"
+                    )
+                    raise RuntimeError(
+                        f"ffmpeg timed out after {timeout_seconds} seconds"
+                    ) from e
+                
+                if result.returncode != 0:
+                    err = result.stderr.decode("utf8", errors="ignore") if result.stderr else "Unknown error"
+                    logger.error(f"ffmpeg failed: {err}")
+                    raise RuntimeError(f"ffmpeg failed:\n{err}")
+                
+                logger.info(f"Video rendered successfully: {out_mp4}")
+            finally:
+                if pbar.n < 100:
+                    pbar.update(100 - pbar.n)
+                pbar.close()
+    finally:
+        # Clean up filter script; failure to delete is non-fatal but logged for diagnostics.
+        try:
+            os.remove(filter_script_path)
+        except Exception as exc:
+            logger.debug("Failed to remove temporary filter script %s: %s", filter_script_path, exc)
