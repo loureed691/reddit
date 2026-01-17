@@ -253,10 +253,11 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Large fonts for maximum mobile readability (96px title, 58px subtitle)
-    # Combined with reduced padding (45px) for maximum content area
-    font_title = _load_font(96)
-    font_sub = _load_font(58)
+    # Extra large fonts optimized for mobile viewing (text = 10% of screen height)
+    # 246px title font produces ~192px tall text (10% of 1920px screen height)
+    # Perfect for TikTok/Shorts/Reels where text readability is critical
+    font_title = _load_font(246)
+    font_sub = _load_font(150)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
@@ -264,8 +265,8 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
     # Estimate height with improved line spacing (~1.3x font size)
-    line_h_title = 125  # Line height for 96px font (≈1.30 ratio)
-    line_h_sub = 76    # Line height for 58px font (≈1.31 ratio)
+    line_h_title = 320  # Line height for 246px font (≈1.30 ratio)
+    line_h_sub = 195    # Line height for 150px font (≈1.30 ratio)
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -347,17 +348,18 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Large fonts for maximum mobile readability (52px author, 64px body, 38px meta)
-    # Combined with reduced padding (45px) for maximum content area
-    font_author = _load_font(52)
-    font_body = _load_font(64)
-    font_meta = _load_font(38)
+    # Extra large fonts optimized for mobile viewing
+    # Comment body at 164px produces ~128px tall text (6.7% of screen height)
+    # Balanced for readability without overwhelming the screen
+    font_author = _load_font(134)
+    font_body = _load_font(164)
+    font_meta = _load_font(98)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 83  # Line height for 64px font (improved readability, ≈1.30 ratio)
+    line_h = 213  # Line height for 164px font (improved readability, ≈1.30 ratio)
     header_h = 130
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -438,10 +440,10 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Large CTA fonts for maximum visual impact and readability (86px main, 58px sub)
-    # Combined with reduced padding (45px) for maximum engagement
-    font_main = _load_font(86)
-    font_sub = _load_font(58)
+    # Extra large CTA fonts for maximum visual impact (220px main = ~172px text height)
+    # CTA text should be highly visible to drive engagement
+    font_main = _load_font(220)
+    font_sub = _load_font(150)
     
     y = 120
     
