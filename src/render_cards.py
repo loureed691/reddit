@@ -89,8 +89,8 @@ class CardTheme:
     # Text indentation values for visual hierarchy
     title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
     comment_body_indent: int = 24  # Indent for comment body text
-    # Modern glassmorphism - semi-transparent dark with blur effect simulation
-    bg: Tuple[int,int,int,int] = (15, 15, 20, 245)  # ~96% opacity for depth
+    # Modern glassmorphism - much lighter background for maximum text contrast and readability
+    bg: Tuple[int,int,int,int] = (45, 50, 60, 250)  # Significantly lighter background for better mobile readability
     # Gradient border with higher opacity for premium look
     border: Tuple[int,int,int,int] = (255, 255, 255, 60)
     border_gradient_start: Tuple[int,int,int,int] = (138, 180, 248, 180)  # Soft blue
@@ -314,16 +314,16 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     y = theme.padding
     
     for line in title_lines[:10]:
-        # Add subtle text shadow for better mobile readability
-        draw.text((x+2, y+2), line, font=font_title, fill=(0, 0, 0, 180))
+        # Add strong text shadow for maximum mobile readability
+        draw.text((x+4, y+4), line, font=font_title, fill=(0, 0, 0, 220))
         draw.text((x, y), line, font=font_title, fill=theme.text)
         y += line_h_title
 
     if subtitle_lines:
         y += 16
         for line in subtitle_lines[:6]:
-            # Add subtle shadow to subtitle too
-            draw.text((x+1, y+1), line, font=font_sub, fill=(0, 0, 0, 120))
+            # Add strong shadow to subtitle too
+            draw.text((x+3, y+3), line, font=font_sub, fill=(0, 0, 0, 200))
             draw.text((x, y), line, font=font_sub, fill=theme.muted)
             y += line_h_sub
 
@@ -381,15 +381,15 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     _draw_gradient_border(img, (0, 0, W, H), theme.radius, 
                          theme.border_gradient_start, theme.border_gradient_end, width=3)
 
-    # author row with shadow
+    # author row with strong shadow for readability
     x = theme.padding
     y = theme.padding
-    draw.text((x+2, y+2), author, font=font_author, fill=(0, 0, 0, 180))
+    draw.text((x+3, y+3), author, font=font_author, fill=(0, 0, 0, 220))
     draw.text((x, y), author, font=font_author, fill=theme.text)
     meta = f"score {score}"
     bbox = draw.textbbox((0,0), meta, font=font_meta)
     meta_x = W-theme.padding-(bbox[2]-bbox[0])
-    draw.text((meta_x+1, y+7), meta, font=font_meta, fill=(0, 0, 0, 120))
+    draw.text((meta_x+2, y+8), meta, font=font_meta, fill=(0, 0, 0, 200))
     draw.text((meta_x, y+6), meta, font=font_meta, fill=theme.muted)
 
     # Enhanced divider with gradient (optimized for performance)
@@ -411,11 +411,11 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     
     y += 28
 
-    # body with shadow for better readability
+    # body with strong shadow for maximum readability
     # Add indent for visual hierarchy and breathing room
     body_x = theme.padding + theme.comment_body_indent
     for line in body_lines[:40]:
-        draw.text((body_x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
+        draw.text((body_x+3, y+3), line, font=font_body, fill=(0, 0, 0, 220))
         draw.text((body_x, y), line, font=font_body, fill=theme.text)
         y += line_h
 
@@ -459,8 +459,8 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
         text_w = bbox[2] - bbox[0]
         x = (W - text_w) // 2
         
-        # Add shadow
-        draw.text((x+3, y+3), text, font=font_main, fill=(0, 0, 0, 180))
+        # Add strong shadow for readability
+        draw.text((x+4, y+4), text, font=font_main, fill=(0, 0, 0, 230))
         draw.text((x, y), text, font=font_main, fill=color)
         y += line_height
     
@@ -469,7 +469,7 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     bbox = draw.textbbox((0, 0), bottom_text, font=font_sub)
     text_w = bbox[2] - bbox[0]
     x = (W - text_w) // 2
-    draw.text((x+2, y+2), bottom_text, font=font_sub, fill=(0, 0, 0, 120))
+    draw.text((x+3, y+3), bottom_text, font=font_sub, fill=(0, 0, 0, 200))
     draw.text((x, y), bottom_text, font=font_sub, fill=theme.muted)
     
     return img
