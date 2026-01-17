@@ -75,7 +75,7 @@ class CardTheme:
     
     Dimensions are optimized for vertical video (1080x1920):
     - card_w: 1050px - increased for better readability (fills ~97% of screen width)
-    - padding: 70px - increased for better spacing and readability
+    - padding: 55px - balanced for optimal text space while maintaining visual breathing room
     - radius: 40px creates modern rounded corners without being excessive
     
     Colors chosen for:
@@ -84,7 +84,7 @@ class CardTheme:
     - Mobile readability (sufficient contrast ratios)
     """
     card_w: int = 1050  # Card width increased for better readability
-    padding: int = 70   # Internal padding increased for better spacing
+    padding: int = 55   # Internal padding balanced for optimal text width
     radius: int = 40    # Corner radius for modern aesthetic
     # Text indentation values for visual hierarchy
     title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
@@ -253,18 +253,18 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Use larger fonts for better readability - increased to 72/44 for improved visibility
-    font_title = _load_font(72)
-    font_sub = _load_font(44)
+    # Use larger fonts for better readability - balanced at 62/40 for optimal character count per line
+    font_title = _load_font(62)
+    font_sub = _load_font(40)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with better spacing - adjusted for larger fonts
-    line_h_title = 88  # Increased for 72px font
-    line_h_sub = 54    # Increased for 44px font
+    # Estimate height with better spacing - adjusted for balanced fonts
+    line_h_title = 76  # Balanced for 62px font
+    line_h_sub = 49    # Balanced for 40px font
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -346,16 +346,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Increased font sizes for better readability - increased to 46/48/34 for improved visibility
-    font_author = _load_font(46)
-    font_body = _load_font(48)
-    font_meta = _load_font(34)
+    # Increased font sizes for better readability - balanced at 40/42/31 for optimal layout
+    font_author = _load_font(40)
+    font_body = _load_font(42)
+    font_meta = _load_font(31)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 58  # Increased for 48px font
+    line_h = 51  # Balanced for 42px font
     header_h = 130
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -436,9 +436,9 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Larger CTA fonts for better readability - increased to 64/44 for improved visibility
-    font_main = _load_font(64)
-    font_sub = _load_font(44)
+    # Larger CTA fonts for better readability - balanced at 58/40 for optimal layout
+    font_main = _load_font(58)
+    font_sub = _load_font(40)
     
     y = 120
     
