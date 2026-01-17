@@ -74,8 +74,8 @@ class CardTheme:
     """Theme configuration for card rendering with glassmorphism design.
     
     Dimensions are optimized for vertical video (1080x1920):
-    - card_w: 1050px - increased for better readability (fills ~97% of screen width)
-    - padding: 70px - increased for better spacing and readability
+    - card_w: 1050px - fills ~97% of screen width for maximum visibility
+    - padding: 45px - balanced spacing to maximize content area
     - radius: 40px creates modern rounded corners without being excessive
     
     Colors chosen for:
