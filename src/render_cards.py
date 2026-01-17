@@ -83,8 +83,8 @@ class CardTheme:
     - Premium glassmorphism aesthetic (semi-transparent with gradient borders)
     - Mobile readability (sufficient contrast ratios)
     """
-    card_w: int = 1050  # Card width increased for better readability
-    padding: int = 45   # Internal padding for balanced spacing
+    card_w: int = 1050  # Card width for readability
+    padding: int = 30   # Reduced padding to fit large fonts in video height
     radius: int = 40    # Corner radius for modern aesthetic
     # Text indentation values for visual hierarchy
     title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
@@ -253,20 +253,19 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Fonts sized to fit cards within 1800px height (prevents ffmpeg downscaling)
-    # 154px title font produces ~120px tall text (6.2% of screen after accounting for card scaling)
-    # Cards must fit in video height to avoid being scaled down by ffmpeg
-    font_title = _load_font(154)
-    font_sub = _load_font(94)
+    # Massive fonts - text should fill most of the card
+    # 500px title font produces ~390px tall text (20% of screen)
+    font_title = _load_font(500)
+    font_sub = _load_font(300)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with improved line spacing (~1.3x font size)
-    line_h_title = 200  # Line height for 154px font (≈1.30 ratio)
-    line_h_sub = 122    # Line height for 94px font (≈1.30 ratio)
+    # Tighter line spacing (1.15x) to fit massive fonts
+    line_h_title = 575  # Line height for 500px font (1.15 ratio)
+    line_h_sub = 345    # Line height for 300px font (1.15 ratio)
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -348,18 +347,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Fonts sized to fit cards within 1800px height (prevents ffmpeg downscaling)
-    # Comment body at 103px produces ~80px tall text after accounting for card scaling
-    # Cards must fit in video height to avoid being scaled down by ffmpeg
-    font_author = _load_font(84)
-    font_body = _load_font(103)
-    font_meta = _load_font(62)
+    # Massive fonts - text should fill the card (330px produces ~257px tall text)
+    font_author = _load_font(270)
+    font_body = _load_font(330)
+    font_meta = _load_font(200)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 134  # Line height for 103px font (improved readability, ≈1.30 ratio)
+    line_h = 380  # Line height for 330px font (1.15 ratio)
     header_h = 130
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -440,10 +437,9 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # CTA fonts sized to fit within video dimensions
-    # CTA text should be highly visible to drive engagement  
-    font_main = _load_font(138)
-    font_sub = _load_font(94)
+    # Massive CTA fonts
+    font_main = _load_font(450)
+    font_sub = _load_font(300)
     
     y = 120
     
