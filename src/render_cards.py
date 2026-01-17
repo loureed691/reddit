@@ -86,7 +86,7 @@ class CardTheme:
     padding: int = 56  # Internal padding for content breathing room
     radius: int = 40   # Corner radius for modern aesthetic
     # Text indentation values for visual hierarchy
-    title_text_indent: int = 32  # Indent for title text (accounts for accent bar)
+    title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
     comment_body_indent: int = 24  # Indent for comment body text
     # Modern glassmorphism - semi-transparent dark with blur effect simulation
     bg: Tuple[int,int,int,int] = (15, 15, 20, 245)  # ~96% opacity for depth
