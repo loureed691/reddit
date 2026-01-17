@@ -73,9 +73,9 @@ _EMOJI_PATTERNS = [
 class CardTheme:
     """Theme configuration for card rendering with glassmorphism design.
     
-    Dimensions are optimized for vertical video (1080x1920):
-    - card_w: 1050px - increased for better readability (fills ~97% of screen width)
-    - padding: 55px - balanced for optimal text space while maintaining visual breathing room
+    Dimensions are optimized for vertical video with 920px effective width:
+    - card_w: 920px - matches screen width to prevent scaling down
+    - padding: 45px - balanced for optimal text space on smaller card
     - radius: 40px creates modern rounded corners without being excessive
     
     Colors chosen for:
@@ -83,8 +83,8 @@ class CardTheme:
     - Premium glassmorphism aesthetic (semi-transparent with gradient borders)
     - Mobile readability (sufficient contrast ratios)
     """
-    card_w: int = 1050  # Card width increased for better readability
-    padding: int = 55   # Internal padding balanced for optimal text width
+    card_w: int = 920   # Card width matches screen width (920px)
+    padding: int = 45   # Internal padding balanced for 920px card
     radius: int = 40    # Corner radius for modern aesthetic
     # Text indentation values for visual hierarchy
     title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
@@ -253,18 +253,18 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Use larger fonts for better readability - balanced at 62/40 for optimal character count per line
-    font_title = _load_font(62)
-    font_sub = _load_font(40)
+    # Large fonts for excellent readability at 920px card width
+    font_title = _load_font(68)
+    font_sub = _load_font(46)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with better spacing - adjusted for balanced fonts
-    line_h_title = 76  # Balanced for 62px font
-    line_h_sub = 49    # Balanced for 40px font
+    # Estimate height with better spacing - adjusted for large fonts
+    line_h_title = 84  # For 68px font
+    line_h_sub = 57    # For 46px font
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -346,16 +346,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Increased font sizes for better readability - balanced at 40/42/31 for optimal layout
-    font_author = _load_font(40)
-    font_body = _load_font(42)
-    font_meta = _load_font(31)
+    # Large font sizes for excellent readability at 920px card width
+    font_author = _load_font(44)
+    font_body = _load_font(50)
+    font_meta = _load_font(36)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 51  # Balanced for 42px font
+    line_h = 62  # For 50px font
     header_h = 130
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -436,9 +436,9 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Larger CTA fonts for better readability - balanced at 58/40 for optimal layout
-    font_main = _load_font(58)
-    font_sub = _load_font(40)
+    # Large CTA fonts for excellent readability at 920px card width
+    font_main = _load_font(66)
+    font_sub = _load_font(46)
     
     y = 120
     
