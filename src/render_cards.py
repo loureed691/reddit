@@ -125,13 +125,12 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
         "/usr/share/fonts/truetype/Symbola.ttf",
         "/usr/share/fonts/TTF/Symbola.ttf",
         # Windows emoji fonts
-        "C:/Windows/Fonts/seguiemj.ttf",  # Segoe UI Emoji
-        "C:/Windows/Fonts/segoeui.ttf",   # Segoe UI (has emoji fallback)
-        "C:/Windows/Fonts/arial.ttf",
+        os.path.join("C:", "Windows", "Fonts", "seguiemj.ttf"),  # Segoe UI Emoji
+        os.path.join("C:", "Windows", "Fonts", "segoeui.ttf"),   # Segoe UI (has emoji fallback)
+        os.path.join("C:", "Windows", "Fonts", "arial.ttf"),
         # Linux fonts
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        # macOS emoji fonts
-        "/System/Library/Fonts/Apple Color Emoji.ttc",
+        # macOS fonts (TTF files only - TTC format may not be fully supported by Pillow)
         "/Library/Fonts/Arial Unicode.ttf",
         "/Library/Fonts/Arial.ttf",
     ]
@@ -139,7 +138,7 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
         try:
             if os.path.exists(p):
                 font = ImageFont.truetype(p, size)
-                # Font loaded successfully - return it for use
+                # Candidates are ordered by Unicode/emoji quality; return the first successfully loaded font
                 return font
         except Exception:
             pass
