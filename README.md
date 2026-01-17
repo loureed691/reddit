@@ -24,6 +24,10 @@ No magic, no hidden utils folder. Just files.
   - Verify: `ffmpeg -version`
   - Verify encoder: `ffmpeg -hide_banner -encoders | grep -i libx264` (Linux/macOS)  
     or `ffmpeg -hide_banner -encoders | findstr /i libx264` (Windows)
+- **Emoji font support** (for proper emoji rendering on cards):
+  - Linux: `sudo apt-get install fonts-symbola` (recommended)
+  - Windows: Uses built-in Segoe UI Emoji
+  - macOS: Uses built-in Apple Color Emoji
 
 ## Install
 
@@ -32,6 +36,9 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
+
+# Linux only - install emoji font for proper emoji rendering:
+sudo apt-get install fonts-symbola
 ```
 
 ## Quick start

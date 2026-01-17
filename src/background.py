@@ -48,18 +48,22 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
     
     # Enhanced viral color schemes - more vibrant, modern palettes
     color_schemes = [
-        # Neon Purple-Pink gradient (viral TikTok aesthetic)
-        [(120, 40, 200), (255, 60, 180)],  # Deep purple to hot pink
-        # Electric Blue-Cyan gradient (modern, energetic)
-        [(0, 50, 150), (0, 220, 255)],   # Dark blue to bright cyan
-        # Sunset Orange-Pink gradient (warm, inviting)
-        [(255, 100, 50), (255, 50, 150)],   # Orange to pink
-        # Mint-Teal gradient (fresh, modern)
-        [(50, 200, 180), (100, 250, 220)],  # Teal to mint
-        # Royal Purple-Blue gradient (premium feel)
-        [(140, 50, 230), (80, 120, 255)], # Purple to royal blue
-        # Neon Green-Blue gradient (energetic)
-        [(0, 255, 150), (0, 180, 255)],   # Neon green to blue
+        # Neon Purple-Pink gradient (viral TikTok aesthetic) - enhanced brightness
+        [(140, 60, 220), (255, 80, 200)],  # Brighter deep purple to hot pink
+        # Electric Blue-Cyan gradient (modern, energetic) - enhanced vibrancy
+        [(20, 80, 180), (20, 240, 255)],   # Brighter blue to bright cyan
+        # Sunset Orange-Pink gradient (warm, inviting) - more saturated
+        [(255, 120, 70), (255, 70, 170)],   # Brighter orange to pink
+        # Mint-Teal gradient (fresh, modern) - more vibrant
+        [(70, 220, 200), (120, 255, 240)],  # Brighter teal to mint
+        # Royal Purple-Blue gradient (premium feel) - enhanced saturation
+        [(160, 70, 250), (100, 140, 255)], # Brighter purple to royal blue
+        # Neon Green-Blue gradient (energetic) - more intense
+        [(20, 255, 170), (20, 200, 255)],   # Brighter neon green to blue
+        # Hot Magenta-Orange gradient (bold, attention-grabbing) - NEW
+        [(255, 50, 150), (255, 140, 50)],   # Hot magenta to orange
+        # Electric Teal-Purple gradient (modern, trendy) - NEW
+        [(50, 220, 200), (180, 80, 255)],   # Electric teal to purple
     ]
     
     color1, color2 = random.choice(color_schemes)
@@ -79,15 +83,15 @@ def generate_viral_gradient_image(path: str, size: Tuple[int,int], style: str = 
             
             # Add bright particle spots - optimized with pre-computed coordinate arrays
             # Particle parameters optimized for visual impact:
-            # - 200 particles: Enough density without cluttering
-            # - Size 20-80px: Varied particle sizes create depth
-            # - Brightness 120-200: Bright enough to stand out against gradient base
+            # - 300 particles: Increased density for more visual interest (was 200)
+            # - Size 25-90px: Larger particles for better visibility (was 20-80)
+            # - Brightness 140-220: Brighter particles that pop (was 120-200)
             random_gen = np.random.default_rng()
-            num_particles = 200
-            particle_size_min = 20
-            particle_size_max = 80
-            particle_brightness_min = 120
-            particle_brightness_max = 200
+            num_particles = 300
+            particle_size_min = 25
+            particle_size_max = 90
+            particle_brightness_min = 140
+            particle_brightness_max = 220
             
             # Pre-compute coordinate grids once
             y_coords = np.arange(H, dtype=np.float32).reshape(-1, 1)
@@ -228,23 +232,23 @@ def generate_background_mp4(out_mp4: str, W: int, H: int, seconds: float, fps: i
     
     # Use different motion patterns based on style for variety
     if style == "particles":
-        # Faster, more energetic motion for particle backgrounds
-        zoom_formula = f"1.2+0.2*sin(on/{fps}/1.5)"
-        pan_x_formula = f"iw/2-(iw/zoom/2)+sin(on/{fps}*1.2)*30"
-        pan_y_formula = f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*30"
+        # More energetic motion for particle backgrounds - enhanced intensity
+        zoom_formula = f"1.25+0.25*sin(on/{fps}/1.3)"  # Increased zoom range (was 1.2+0.2)
+        pan_x_formula = f"iw/2-(iw/zoom/2)+sin(on/{fps}*1.4)*40"  # Increased pan distance (was 30)
+        pan_y_formula = f"ih/2-(ih/zoom/2)+cos(on/{fps}*1.0)*40"  # Increased pan distance
     elif style == "waves":
-        # Slower, flowing motion for wave backgrounds
-        zoom_formula = f"1.15+0.18*sin(on/{fps}/2.5)"
-        pan_x_formula = f"iw/2-(iw/zoom/2)+sin(on/{fps}*0.6)*25"
-        pan_y_formula = f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.4)*25"
+        # More flowing motion for wave backgrounds - enhanced smoothness
+        zoom_formula = f"1.20+0.22*sin(on/{fps}/2.2)"  # Increased zoom (was 1.15+0.18)
+        pan_x_formula = f"iw/2-(iw/zoom/2)+sin(on/{fps}*0.7)*35"  # Increased pan (was 25)
+        pan_y_formula = f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.5)*35"  # Increased pan
     else:
-        # Balanced motion for gradient/radial backgrounds
-        zoom_formula = f"1.18+0.17*sin(on/{fps}/2)"
+        # More dynamic motion for gradient/radial backgrounds
+        zoom_formula = f"1.22+0.20*sin(on/{fps}/1.8)"  # Increased zoom (was 1.18+0.17)
         pan_x_formula = (
-            f"iw/2-(iw/zoom/2)+sin(on/{fps}*0.8)*25+cos(on/{fps}*0.3)*10"
+            f"iw/2-(iw/zoom/2)+sin(on/{fps}*0.9)*35+cos(on/{fps}*0.35)*15"  # Increased (was 25+10)
         )
         pan_y_formula = (
-            f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.8)*25+sin(on/{fps}*0.3)*10"
+            f"ih/2-(ih/zoom/2)+cos(on/{fps}*0.9)*35+sin(on/{fps}*0.35)*15"  # Increased
         )
 
     vf = (
