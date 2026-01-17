@@ -362,7 +362,7 @@ class RedditVideoFactory:
         _ensure_dir(out_dir)
         out_mp4 = os.path.join(out_dir, _sanitize_filename(thread.title)[:120] + ".mp4")
 
-        screenshot_width = int((self.cfg.settings.resolution_w * 45) // 100)
+        screenshot_width = (self.cfg.settings.resolution_w * 97) // 100
         
         logger.debug(f"Output file: {out_mp4}")
         logger.debug(f"Total audio duration: {sum(durations):.2f}s")
