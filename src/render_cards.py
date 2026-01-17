@@ -73,8 +73,8 @@ class CardTheme:
     """Theme configuration for card rendering with glassmorphism design.
     
     Dimensions are optimized for vertical video (1080x1920):
-    - card_w: 920px fits comfortably with margins in 1080px width
-    - padding: 56px provides breathing room for content
+    - card_w: 1000px - increased from 920px for better readability (fills ~92% of screen width)
+    - padding: 60px - increased for better spacing and readability
     - radius: 40px creates modern rounded corners without being excessive
     
     Colors chosen for:
@@ -82,9 +82,9 @@ class CardTheme:
     - Premium glassmorphism aesthetic (semi-transparent with gradient borders)
     - Mobile readability (sufficient contrast ratios)
     """
-    card_w: int = 920  # Card width optimized for 1080px vertical video
-    padding: int = 56  # Internal padding for content breathing room
-    radius: int = 40   # Corner radius for modern aesthetic
+    card_w: int = 1000  # Card width increased for better readability (was 920px)
+    padding: int = 60   # Internal padding increased for better spacing (was 56px)
+    radius: int = 40    # Corner radius for modern aesthetic
     # Text indentation values for visual hierarchy
     title_text_indent: int = 32  # Indent for title text (base offset from accent bar)
     comment_body_indent: int = 24  # Indent for comment body text
@@ -113,12 +113,21 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
     candidates = []
     if prefer:
         candidates.append(prefer)
-    # common fonts
+    # common fonts with emoji support prioritized
     candidates += [
         "assets/fonts/Inter-Regular.ttf",
         "assets/fonts/Roboto-Regular.ttf",
+        # Windows emoji fonts
+        "C:/Windows/Fonts/seguiemj.ttf",  # Segoe UI Emoji
+        "C:/Windows/Fonts/segoeui.ttf",   # Segoe UI (has emoji fallback)
         "C:/Windows/Fonts/arial.ttf",
+        # Linux emoji fonts
+        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        # macOS emoji fonts
+        "/System/Library/Fonts/Apple Color Emoji.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
         "/Library/Fonts/Arial.ttf",
     ]
     for p in candidates:
@@ -128,6 +137,31 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
         except Exception:
             pass
     return ImageFont.load_default()
+
+@lru_cache(maxsize=32)
+def _load_emoji_font(size: int) -> Optional[ImageFont.FreeTypeFont]:
+    """Load an emoji-specific font with caching.
+    
+    Returns None if no emoji font is available.
+    This font is used as a fallback for emoji characters.
+    """
+    emoji_fonts = [
+        # Windows
+        "C:/Windows/Fonts/seguiemj.ttf",  # Segoe UI Emoji - best for Windows
+        # Linux
+        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+        "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
+        # macOS
+        "/System/Library/Fonts/Apple Color Emoji.ttc",
+        "/Library/Fonts/Arial Unicode.ttf",
+    ]
+    for p in emoji_fonts:
+        try:
+            if os.path.exists(p):
+                return ImageFont.truetype(p, size)
+        except Exception:
+            pass
+    return None
 
 def _rounded_rectangle(draw: ImageDraw.ImageDraw, xy, radius, fill, outline=None, width=1):
     # Pillow >= 9 supports rounded_rectangle
@@ -238,18 +272,18 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Use larger fonts for better readability
-    font_title = _load_font(56)
-    font_sub = _load_font(32)
+    # Use larger fonts for better readability - increased from 56/32 to 64/38
+    font_title = _load_font(64)
+    font_sub = _load_font(38)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with better spacing
-    line_h_title = 68
-    line_h_sub = 42
+    # Estimate height with better spacing - adjusted for larger fonts
+    line_h_title = 78  # Increased from 68
+    line_h_sub = 48    # Increased from 42
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -331,15 +365,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    font_author = _load_font(34)
-    font_body = _load_font(36)
-    font_meta = _load_font(26)
+    # Increased font sizes for better readability - from 34/36/26 to 40/42/30
+    font_author = _load_font(40)
+    font_body = _load_font(42)
+    font_meta = _load_font(30)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 46
+    line_h = 52  # Increased from 46 for larger font
     header_h = 120
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -420,9 +455,9 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Large CTA fonts
-    font_main = _load_font(48)
-    font_sub = _load_font(32)
+    # Larger CTA fonts for better readability - increased from 48/32 to 56/38
+    font_main = _load_font(56)
+    font_sub = _load_font(38)
     
     y = 120
     
