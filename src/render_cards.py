@@ -253,19 +253,19 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Balanced large fonts for prominent visibility (64px title, 42px subtitle)
+    # Large fonts for maximum visibility at 97% scale (72px title, 44px subtitle)
     # Combined with reduced padding (45px) for maximum content area
-    font_title = _load_font(64)
-    font_sub = _load_font(42)
+    font_title = _load_font(72)
+    font_sub = _load_font(44)
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
     title_lines = _wrap_text(draw, title.strip(), font_title, max_text_w)
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
-    # Estimate height with better spacing
-    line_h_title = 78  # Line height for 64px font
-    line_h_sub = 52    # Line height for 42px font
+    # Estimate height with improved line spacing (~1.3x font size)
+    line_h_title = 94  # Line height for 72px font (≈1.31 ratio)
+    line_h_sub = 58    # Line height for 44px font (≈1.32 ratio)
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -347,17 +347,17 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Balanced large fonts for prominent visibility (44px author, 42px body, 32px meta)
+    # Large fonts for maximum visibility at 97% scale (46px author, 48px body, 34px meta)
     # Combined with reduced padding (45px) for maximum content area
-    font_author = _load_font(44)
-    font_body = _load_font(42)
-    font_meta = _load_font(32)
+    font_author = _load_font(46)
+    font_body = _load_font(48)
+    font_meta = _load_font(34)
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 52  # Line height for 42px font
+    line_h = 62  # Line height for 48px font (improved readability, ≈1.29 ratio)
     header_h = 130
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
@@ -438,10 +438,10 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Balanced large CTA fonts for prominent visibility (58px main, 40px sub)
-    # Combined with reduced padding (45px) for maximum visual impact
-    font_main = _load_font(58)
-    font_sub = _load_font(40)
+    # Large CTA fonts for maximum visual impact at 97% scale (64px main, 44px sub)
+    # Combined with reduced padding (45px) for maximum engagement
+    font_main = _load_font(64)
+    font_sub = _load_font(44)
     
     y = 120
     
