@@ -395,10 +395,10 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
 
     # body with shadow for better readability
     # Add indent for visual hierarchy and breathing room
-    x = theme.padding + theme.comment_body_indent
+    body_x = theme.padding + theme.comment_body_indent
     for line in body_lines[:40]:
-        draw.text((x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
-        draw.text((x, y), line, font=font_body, fill=theme.text)
+        draw.text((body_x+1, y+1), line, font=font_body, fill=(0, 0, 0, 120))
+        draw.text((body_x, y), line, font=font_body, fill=theme.text)
         y += line_h
 
     return img
