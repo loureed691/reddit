@@ -323,7 +323,7 @@ def _render_video_with_script(
         filter_lines.append(f"[{bg_audio_idx}:a]volume={bg_audio_volume}[bg_audio]")
         filter_lines.append(f"[1:a][bg_audio]amix=duration=longest[aout]")
     else:
-        filter_lines.append(f"[1:a]acopy[aout]")
+        filter_lines.append(f"[1:a]anull[aout]")
     
     # Write filter script to temporary file
     filter_script = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8")
