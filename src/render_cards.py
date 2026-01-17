@@ -236,7 +236,7 @@ def _add_viral_emoji(title: str) -> str:
     
     return title
 
-def render_title_card(title: str, subtitle: str="") -> Image.Image:
+def render_title_card(title: str, subtitle: str="", font_scale: float = 1.0) -> Image.Image:
     """Render a modern title card with glassmorphism effect and gradient accents.
     
     Optimized to calculate exact dimensions first to avoid recreation.
@@ -248,6 +248,7 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     theme = CardTheme()
     W = theme.card_w
     base_h = 540
+    scale = max(0.5, float(font_scale or 1.0))
 
     # Pre-create draw context for measurement
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
@@ -255,8 +256,8 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
 
     # Large fonts for maximum mobile readability (96px title, 58px subtitle)
     # Combined with reduced padding (45px) for maximum content area
-    font_title = _load_font(96)
-    font_sub = _load_font(58)
+    font_title = _load_font(int(96 * scale))
+    font_sub = _load_font(int(58 * scale))
 
     # Account for text indentation in wrapping calculation
     max_text_w = W - 2*theme.padding - theme.title_text_indent - 8  # 8px extra for accent bar glow
@@ -264,8 +265,8 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     subtitle_lines = _wrap_text(draw, subtitle.strip(), font_sub, max_text_w) if subtitle else []
 
     # Estimate height with improved line spacing (~1.3x font size)
-    line_h_title = 125  # Line height for 96px font (≈1.30 ratio)
-    line_h_sub = 76    # Line height for 58px font (≈1.31 ratio)
+    line_h_title = int(125 * scale)  # Line height for 96px font (≈1.30 ratio)
+    line_h_sub = int(76 * scale)    # Line height for 58px font (≈1.31 ratio)
     content_h = theme.padding + len(title_lines)*line_h_title + (32 if subtitle_lines else 0) + len(subtitle_lines)*line_h_sub + theme.padding
     H = max(base_h, content_h)
 
@@ -320,7 +321,7 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
         y += line_h_title
 
     if subtitle_lines:
-        y += 16
+        y += int(16 * scale)
         for line in subtitle_lines[:6]:
             # Add subtle shadow to subtitle too
             draw.text((x+1, y+1), line, font=font_sub, fill=(0, 0, 0, 120))
@@ -329,7 +330,7 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
 
     return img
 
-def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
+def render_comment_card(author: str, body: str, score: int=0, font_scale: float = 1.0) -> Image.Image:
     """Render a modern comment card with enhanced visual design.
     
     Enhanced design features:
@@ -342,6 +343,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     theme = CardTheme()
     W = theme.card_w
     base_h = 740
+    scale = max(0.5, float(font_scale or 1.0))
 
     # Pre-create draw context for measurement
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
@@ -349,16 +351,16 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
 
     # Large fonts for maximum mobile readability (52px author, 64px body, 38px meta)
     # Combined with reduced padding (45px) for maximum content area
-    font_author = _load_font(52)
-    font_body = _load_font(64)
-    font_meta = _load_font(38)
+    font_author = _load_font(int(52 * scale))
+    font_body = _load_font(int(64 * scale))
+    font_meta = _load_font(int(38 * scale))
 
     # Account for indent in body text wrapping calculation
     max_text_w = W - 2*theme.padding - theme.comment_body_indent
     body_lines = _wrap_text(draw, body.strip(), font_body, max_text_w)
 
-    line_h = 83  # Line height for 64px font (improved readability, ≈1.30 ratio)
-    header_h = 130
+    line_h = int(83 * scale)  # Line height for 64px font (improved readability, ≈1.30 ratio)
+    header_h = int(130 * scale)
     content_h = theme.padding + header_h + len(body_lines)*line_h + theme.padding
     H = max(base_h, content_h)
 
@@ -389,11 +391,12 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     meta = f"score {score}"
     bbox = draw.textbbox((0,0), meta, font=font_meta)
     meta_x = W-theme.padding-(bbox[2]-bbox[0])
-    draw.text((meta_x+1, y+7), meta, font=font_meta, fill=(0, 0, 0, 120))
-    draw.text((meta_x, y+6), meta, font=font_meta, fill=theme.muted)
+    meta_shadow_offset = int(7 * scale)
+    draw.text((meta_x+1, y+meta_shadow_offset), meta, font=font_meta, fill=(0, 0, 0, 120))
+    draw.text((meta_x, y+max(0, meta_shadow_offset-1)), meta, font=font_meta, fill=theme.muted)
 
     # Enhanced divider with gradient (optimized for performance)
-    y += 64
+    y += int(64 * scale)
     divider_y = y
     # Draw gradient divider with fewer, thicker lines for better performance
     divider_width = max(1, W - 2 * theme.padding)  # Prevent division by zero
@@ -409,7 +412,7 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
         x = theme.padding + int(i * divider_width / (steps - 1)) if steps > 1 else theme.padding
         draw.line((x, divider_y, x, divider_y + 2), fill=color, width=step)
     
-    y += 28
+    y += int(28 * scale)
 
     # body with shadow for better readability
     # Add indent for visual hierarchy and breathing room
