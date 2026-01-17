@@ -124,6 +124,31 @@ def merge_background_audio(audio_stream, bg_mp3: str, bg_volume: float):
     bg = ffmpeg.input(bg_mp3).filter("volume", bg_volume)
     return ffmpeg.filter([audio_stream, bg], "amix", duration="longest")
 
+def _append_audio_filter_to_script(
+    filter_lines: List[str],
+    bg_audio_mp3: Optional[str],
+    bg_audio_volume: float,
+    main_audio_label: str,
+    bg_audio_idx: int,
+) -> None:
+    """
+    Append background-audio mixing filters to the filter graph.
+
+    This centralizes the logic for combining the primary audio stream
+    with an optional background audio track, ensuring consistency
+    across different rendering modes.
+    """
+    if bg_audio_mp3 and exists(bg_audio_mp3) and bg_audio_volume > 0:
+        # Background audio will be the last input
+        filter_lines.append(
+            f"[{bg_audio_idx}:a]volume={bg_audio_volume}[bg_audio]"
+        )
+        filter_lines.append(
+            f"{main_audio_label}[bg_audio]amix=duration=longest[aout]"
+        )
+    else:
+        filter_lines.append(f"{main_audio_label}anull[aout]")
+
 def render_video(
     background_mp4: str,
     out_mp4: str,
@@ -283,7 +308,7 @@ def _render_video_with_script(
     current_stream = "[0:v]"
     t = 0.0
     
-    for i, (img_path, dur) in enumerate(zip(image_paths, image_durations)):
+    for i, (_, dur) in enumerate(zip(image_paths, image_durations)):
         img_idx = i + 2  # Background is 0, audio is 1, images start at 2
         
         # Scale the image
@@ -315,13 +340,14 @@ def _render_video_with_script(
     filter_lines.append(f"{current_stream}scale={W}:{H}[vout]")
     
     # Audio handling
-    if bg_audio_mp3 and exists(bg_audio_mp3) and bg_audio_volume > 0:
-        # Background audio will be the last input
-        bg_audio_idx = len(image_paths) + 2
-        filter_lines.append(f"[{bg_audio_idx}:a]volume={bg_audio_volume}[bg_audio]")
-        filter_lines.append(f"[1:a][bg_audio]amix=duration=longest[aout]")
-    else:
-        filter_lines.append(f"[1:a]anull[aout]")
+    bg_audio_idx = len(image_paths) + 2
+    _append_audio_filter_to_script(
+        filter_lines=filter_lines,
+        bg_audio_mp3=bg_audio_mp3,
+        bg_audio_volume=bg_audio_volume,
+        main_audio_label="[1:a]",
+        bg_audio_idx=bg_audio_idx,
+    )
     
     # Write filter script to temporary file
     # Use mkstemp for better security and control
@@ -373,6 +399,7 @@ def _render_video_with_script(
                     "-movflags", "+faststart",
                     "-threads", str(min(multiprocessing.cpu_count(), 8)),
                     "-t", str(total_len),
+                    "-shortest",
                     "-y",  # Overwrite output
                     "-progress", prog.progress_path,
                     "-nostats",
@@ -384,13 +411,35 @@ def _render_video_with_script(
                 
                 # Run ffmpeg with a reasonable timeout
                 # Timeout is 10 minutes per minute of video + 5 minutes overhead
-                timeout_seconds = max(300, int(total_len * 600))
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=False,
-                    timeout=timeout_seconds
-                )
+                timeout_seconds = 300 + int((total_len / 60) * 600)
+                try:
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=False,
+                        timeout=timeout_seconds
+                    )
+                except subprocess.TimeoutExpired as e:
+                    # Decode any available stderr/stdout for logging
+                    stderr_msg = None
+                    stdout_msg = None
+                    if e.stderr:
+                        try:
+                            stderr_msg = e.stderr.decode("utf8", errors="ignore")
+                        except Exception:
+                            stderr_msg = "<failed to decode stderr>"
+                    if e.stdout:
+                        try:
+                            stdout_msg = e.stdout.decode("utf8", errors="ignore")
+                        except Exception:
+                            stdout_msg = "<failed to decode stdout>"
+                    logger.error(
+                        f"ffmpeg timed out after {timeout_seconds} seconds. "
+                        f"stderr: {stderr_msg!r}, stdout: {stdout_msg!r}"
+                    )
+                    raise RuntimeError(
+                        f"ffmpeg timed out after {timeout_seconds} seconds"
+                    ) from e
                 
                 if result.returncode != 0:
                     err = result.stderr.decode("utf8", errors="ignore") if result.stderr else "Unknown error"
@@ -403,8 +452,8 @@ def _render_video_with_script(
                     pbar.update(100 - pbar.n)
                 pbar.close()
     finally:
-        # Clean up filter script
+        # Clean up filter script; failure to delete is non-fatal but logged for diagnostics.
         try:
             os.remove(filter_script_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to remove temporary filter script %s: %s", filter_script_path, exc)
