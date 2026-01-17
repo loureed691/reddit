@@ -253,7 +253,8 @@ def render_title_card(title: str, subtitle: str="") -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Large fonts for prominent visibility on mobile vertical video
+    # Balanced large fonts for prominent visibility (64px title, 42px subtitle)
+    # Combined with reduced padding (45px) for maximum content area
     font_title = _load_font(64)
     font_sub = _load_font(42)
 
@@ -346,7 +347,8 @@ def render_comment_card(author: str, body: str, score: int=0) -> Image.Image:
     temp_img = Image.new("RGBA", (W, base_h), (0,0,0,0))
     draw = ImageDraw.Draw(temp_img)
 
-    # Large fonts for prominent visibility on mobile vertical video
+    # Balanced large fonts for prominent visibility (44px author, 42px body, 32px meta)
+    # Combined with reduced padding (45px) for maximum content area
     font_author = _load_font(44)
     font_body = _load_font(42)
     font_meta = _load_font(32)
@@ -436,7 +438,8 @@ def render_outro_cta_card(bottom_text: str = "More stories coming soon!") -> Ima
     draw = ImageDraw.Draw(img)
     _rounded_rectangle(draw, (0,0,W,H), theme.radius, fill=theme.bg, outline=theme.border, width=2)
     
-    # Large CTA fonts for prominent visibility
+    # Balanced large CTA fonts for prominent visibility (58px main, 40px sub)
+    # Combined with reduced padding (45px) for maximum visual impact
     font_main = _load_font(58)
     font_sub = _load_font(40)
     
