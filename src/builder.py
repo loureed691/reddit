@@ -271,8 +271,6 @@ def _render_video_with_script(
     This approach writes the complex filter graph to a temporary file and uses
     -filter_complex_script to reference it, avoiding Windows command line length limits.
     """
-    import subprocess
-    
     total_len = max(0.1, sum(max(0.0, d) for d in image_durations))
     
     # Build the filter complex script
@@ -326,83 +324,87 @@ def _render_video_with_script(
         filter_lines.append(f"[1:a]anull[aout]")
     
     # Write filter script to temporary file
-    filter_script = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8")
-    filter_script_path = filter_script.name
-    filter_script.write(";\n".join(filter_lines))
-    filter_script.close()
-    
-    logger.debug(f"Filter script written to: {filter_script_path}")
-    logger.debug(f"Filter script size: {os.path.getsize(filter_script_path)} bytes")
-    
-    pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
-    def on_update(p: float):
-        target = max(0.0, min(100.0, p*100))
-        delta = target - pbar.n
-        if delta > 0:
-            pbar.update(delta)
-    
-    with ProgressFfmpeg(total_len, on_update) as prog:
-        try:
-            # Build ffmpeg command manually
-            cmd = ["ffmpeg"]
-            
-            # Add inputs
-            cmd.extend(["-i", background_mp4])
-            cmd.extend(["-i", audio_mp3])
-            for img_path in image_paths:
-                cmd.extend(["-i", img_path])
-            
-            # Add background audio if present
-            if bg_audio_mp3 and exists(bg_audio_mp3) and bg_audio_volume > 0:
-                cmd.extend(["-i", bg_audio_mp3])
-            
-            # Add filter script
-            cmd.extend(["-filter_complex_script", filter_script_path])
-            
-            # Map outputs
-            cmd.extend(["-map", "[vout]", "-map", "[aout]"])
-            
-            # Output settings
-            cmd.extend([
-                "-f", "mp4",
-                "-c:v", "libx264",
-                "-c:a", "aac",
-                "-preset", "faster",
-                "-b:v", "8M",
-                "-b:a", "192k",
-                "-pix_fmt", "yuv420p",
-                "-movflags", "+faststart",
-                "-threads", str(min(multiprocessing.cpu_count(), 8)),
-                "-t", str(total_len),
-                "-y",  # Overwrite output
-                "-progress", prog.progress_path,
-                "-nostats",
-                "-loglevel", "error",
-                out_mp4
-            ])
-            
-            logger.debug(f"Running ffmpeg with {len(cmd)} arguments")
-            
-            # Run ffmpeg
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=False
-            )
-            
-            if result.returncode != 0:
-                err = result.stderr.decode("utf8", errors="ignore") if result.stderr else "Unknown error"
-                logger.error(f"ffmpeg failed: {err}")
-                raise RuntimeError(f"ffmpeg failed:\n{err}")
-            
-            logger.info(f"Video rendered successfully: {out_mp4}")
-        finally:
-            # Clean up filter script
+    # Use mkstemp for better security and control
+    filter_script_fd, filter_script_path = tempfile.mkstemp(suffix=".txt", text=True)
+    try:
+        with os.fdopen(filter_script_fd, 'w', encoding='utf-8') as f:
+            f.write(";\n".join(filter_lines))
+        
+        logger.debug(f"Filter script written to: {filter_script_path}")
+        logger.debug(f"Filter script size: {os.path.getsize(filter_script_path)} bytes")
+        
+        pbar = tqdm(total=100, desc="Encoding", unit="%", ncols=80)
+        def on_update(p: float):
+            target = max(0.0, min(100.0, p*100))
+            delta = target - pbar.n
+            if delta > 0:
+                pbar.update(delta)
+        
+        with ProgressFfmpeg(total_len, on_update) as prog:
             try:
-                os.remove(filter_script_path)
-            except Exception:
-                pass
-            
-            if pbar.n < 100:
-                pbar.update(100 - pbar.n)
-            pbar.close()
+                # Build ffmpeg command manually
+                cmd = ["ffmpeg"]
+                
+                # Add inputs
+                cmd.extend(["-i", background_mp4])
+                cmd.extend(["-i", audio_mp3])
+                for img_path in image_paths:
+                    cmd.extend(["-i", img_path])
+                
+                # Add background audio if present
+                if bg_audio_mp3 and exists(bg_audio_mp3) and bg_audio_volume > 0:
+                    cmd.extend(["-i", bg_audio_mp3])
+                
+                # Add filter script
+                cmd.extend(["-filter_complex_script", filter_script_path])
+                
+                # Map outputs
+                cmd.extend(["-map", "[vout]", "-map", "[aout]"])
+                
+                # Output settings
+                cmd.extend([
+                    "-f", "mp4",
+                    "-c:v", "libx264",
+                    "-c:a", "aac",
+                    "-preset", "faster",
+                    "-b:v", "8M",
+                    "-b:a", "192k",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    "-threads", str(min(multiprocessing.cpu_count(), 8)),
+                    "-t", str(total_len),
+                    "-y",  # Overwrite output
+                    "-progress", prog.progress_path,
+                    "-nostats",
+                    "-loglevel", "error",
+                    out_mp4
+                ])
+                
+                logger.debug(f"Running ffmpeg with {len(cmd)} arguments")
+                
+                # Run ffmpeg with a reasonable timeout
+                # Timeout is 10 minutes per minute of video + 5 minutes overhead
+                timeout_seconds = max(300, int(total_len * 600))
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=False,
+                    timeout=timeout_seconds
+                )
+                
+                if result.returncode != 0:
+                    err = result.stderr.decode("utf8", errors="ignore") if result.stderr else "Unknown error"
+                    logger.error(f"ffmpeg failed: {err}")
+                    raise RuntimeError(f"ffmpeg failed:\n{err}")
+                
+                logger.info(f"Video rendered successfully: {out_mp4}")
+            finally:
+                if pbar.n < 100:
+                    pbar.update(100 - pbar.n)
+                pbar.close()
+    finally:
+        # Clean up filter script
+        try:
+            os.remove(filter_script_path)
+        except Exception:
+            pass
