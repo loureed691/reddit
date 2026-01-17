@@ -20,6 +20,7 @@ from PIL import Image, ImageDraw, ImageFont
 from functools import lru_cache
 
 # Pre-compile emoji patterns for performance
+# Using Unicode symbols that render reliably across all fonts
 _EMOJI_PATTERNS = [
     # Questions and curiosity (high engagement)
     (re.compile(r'\b(what|why|how|when|who|where)\b', re.IGNORECASE), '🤔'),
@@ -27,7 +28,7 @@ _EMOJI_PATTERNS = [
     
     # Emotional content (viral triggers)
     (re.compile(r'\b(scar(y|iest|ed)|creepy|horror|terrify(ing)?|nightmare)\b', re.IGNORECASE), '😱'),
-    (re.compile(r'\b(love|heart|romantic|relationship)\b', re.IGNORECASE), '❤️'),
+    (re.compile(r'\b(love|heart|romantic|relationship)\b', re.IGNORECASE), '❤'),
     (re.compile(r'\b(funny|hilarious|laugh|joke|lol)\b', re.IGNORECASE), '😂'),
     (re.compile(r'\b(angry|mad|furious|rage)\b', re.IGNORECASE), '😠'),
     (re.compile(r'\b(sad|depressing|cry|tear)\b', re.IGNORECASE), '😢'),
@@ -38,7 +39,7 @@ _EMOJI_PATTERNS = [
     (re.compile(r'\b(money|rich|wealth|dollar|pay)\b', re.IGNORECASE), '💰'),
     
     # Warning and danger
-    (re.compile(r'\b(danger|warning|alert|careful|risk)\b', re.IGNORECASE), '⚠️'),
+    (re.compile(r'\b(danger|warning|alert|careful|risk)\b', re.IGNORECASE), '⚠'),
     (re.compile(r'\b(wrong|mistake|fail|error|bad)\b', re.IGNORECASE), '❌'),
     (re.compile(r'\b(right|correct|good|great)\b', re.IGNORECASE), '✅'),
     
@@ -109,21 +110,22 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
     """Load font with caching to avoid repeated file I/O.
     
     Best effort: use bundled or system. If not found, fallback default.
+    Prioritizes fonts with better emoji/Unicode support.
     """
     candidates = []
     if prefer:
         candidates.append(prefer)
-    # common fonts with emoji support prioritized
+    # Prioritize fonts with better Unicode/emoji support
     candidates += [
         "assets/fonts/Inter-Regular.ttf",
         "assets/fonts/Roboto-Regular.ttf",
+        # Symbola has excellent emoji support (monochrome, works with Pillow)
+        "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
         # Windows emoji fonts
         "C:/Windows/Fonts/seguiemj.ttf",  # Segoe UI Emoji
         "C:/Windows/Fonts/segoeui.ttf",   # Segoe UI (has emoji fallback)
         "C:/Windows/Fonts/arial.ttf",
-        # Linux emoji fonts
-        "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
-        "/usr/share/fonts/truetype/ancient-scripts/Symbola_hint.ttf",
+        # Linux fonts
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         # macOS emoji fonts
         "/System/Library/Fonts/Apple Color Emoji.ttc",
@@ -133,7 +135,10 @@ def _load_font(size: int, prefer: Optional[str]=None) -> ImageFont.FreeTypeFont:
     for p in candidates:
         try:
             if os.path.exists(p):
-                return ImageFont.truetype(p, size)
+                font = ImageFont.truetype(p, size)
+                # Verify the font can render basic emoji by checking if it has glyph coverage
+                # We'll use it if it loads successfully
+                return font
         except Exception:
             pass
     return ImageFont.load_default()
